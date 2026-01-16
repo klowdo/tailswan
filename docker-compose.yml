@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  tailswan:
+    build: .
+    container_name: tailswan
+    hostname: tailswan
+    restart: unless-stopped
+
+    # Required capabilities for VPN functionality
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    # Required for TUN/TAP device
+    devices:
+      - /dev/net/tun
+
+    # Environment variables
+    environment:
+      # Tailscale configuration
+      - TS_AUTHKEY=${TS_AUTHKEY}  # Set this in .env file or export it
+      - TS_HOSTNAME=tailswan-gateway
+      - TS_ROUTES=10.1.0.0/24,10.2.0.0/24  # Adjust to your subnets
+      - TS_SSH=true
+      # - TS_EXTRA_ARGS=--accept-routes
+
+      # strongSwan configuration
+      - SWAN_AUTO_START=false  # Set to true to auto-start connections
+      # - SWAN_CONNECTIONS=site-to-site  # Comma-separated connection names
+      - SWAN_CONFIG=/etc/swanctl/swanctl.conf
+
+    # Volume mounts
+    volumes:
+      # Mount your swanctl configuration
+      - ./swanctl.conf:/etc/swanctl/swanctl.conf:ro
+
+      # Mount certificate directories (if using certificate auth)
+      # - ./certs/x509:/etc/swanctl/x509:ro
+      # - ./certs/x509ca:/etc/swanctl/x509ca:ro
+      # - ./certs/private:/etc/swanctl/private:ro
+
+      # Persist Tailscale state (optional but recommended)
+      - tailscale-state:/var/lib/tailscale
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "/tailswan/healthcheck.sh"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  tailscale-state:
+    driver: local
+
+# Example .env file content:
+# TS_AUTHKEY=tskey-auth-xxxxxxxxxxxx-yyyyyyyyyyyyyyyyyyyyyyyyyyyy

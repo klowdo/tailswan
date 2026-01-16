@@ -1,0 +1,43 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+
+# Docker files
+docker-compose.yml
+.dockerignore
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Certificates and keys (will be mounted)
+certs/
+*.key
+*.pem
+*.crt
+*.p12
+
+# Configuration files (will be mounted)
+swanctl.conf
+*.conf
+!swanctl.conf.example
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.log

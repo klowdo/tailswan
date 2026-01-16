@@ -1,0 +1,151 @@
+# TailSwan - swanctl.conf example
+# This file should be mounted to /etc/swanctl/swanctl.conf in the container
+#
+# Documentation: https://docs.strongswan.org/docs/latest/swanctl/swanctlConf.html
+
+# Example 1: Site-to-Site VPN with PSK (Pre-Shared Key)
+connections {
+    site-to-site {
+        version = 2
+        local_addrs = 0.0.0.0
+        remote_addrs = <REMOTE_VPN_GATEWAY_IP>
+
+        local {
+            auth = psk
+            id = local-gateway
+        }
+
+        remote {
+            auth = psk
+            id = remote-gateway
+        }
+
+        children {
+            net-net {
+                # Local subnet(s) to expose
+                local_ts = 10.1.0.0/24
+
+                # Remote subnet(s) to access
+                remote_ts = 10.2.0.0/24
+
+                # Start action: 'trap' waits for traffic, 'start' initiates immediately
+                start_action = trap
+
+                # ESP proposals
+                esp_proposals = aes256-sha256-modp2048
+            }
+        }
+
+        # IKE proposals
+        proposals = aes256-sha256-modp2048
+    }
+}
+
+# Pre-shared keys (if using PSK authentication)
+secrets {
+    ike-site-to-site {
+        id = local-gateway
+        secret = "your-very-strong-preshared-key-here"
+    }
+}
+
+# Example 2: Remote Access VPN (Road Warrior) with certificates
+# Uncomment and configure as needed
+#
+# connections {
+#     rw-vpn {
+#         version = 2
+#         local_addrs = 0.0.0.0
+#
+#         local {
+#             auth = pubkey
+#             certs = server-cert.pem
+#             id = vpn.example.com
+#         }
+#
+#         remote {
+#             auth = pubkey
+#             # Accept any client certificate signed by our CA
+#         }
+#
+#         children {
+#             rw-net {
+#                 local_ts = 0.0.0.0/0
+#                 esp_proposals = aes256-sha256-modp2048
+#                 dpd_action = clear
+#             }
+#         }
+#
+#         # Assign virtual IPs to clients
+#         pools = ipv4-pool
+#
+#         proposals = aes256-sha256-modp2048
+#     }
+# }
+#
+# pools {
+#     ipv4-pool {
+#         addrs = 10.3.0.0/24
+#     }
+# }
+
+# Example 3: Route-based VPN (using VTI - Virtual Tunnel Interface)
+# Uncomment and configure as needed
+#
+# connections {
+#     route-based {
+#         version = 2
+#         local_addrs = <LOCAL_IP>
+#         remote_addrs = <REMOTE_IP>
+#
+#         local {
+#             auth = psk
+#             id = local-id
+#         }
+#
+#         remote {
+#             auth = psk
+#             id = remote-id
+#         }
+#
+#         children {
+#             vti-child {
+#                 # Use 0.0.0.0/0 for route-based VPN
+#                 local_ts = 0.0.0.0/0
+#                 remote_ts = 0.0.0.0/0
+#
+#                 # Enable route-based mode
+#                 mode = tunnel
+#                 start_action = start
+#                 close_action = trap
+#
+#                 # Set XFRM interface ID for VTI
+#                 if_id_in = 42
+#                 if_id_out = 42
+#
+#                 esp_proposals = aes256-sha256-modp2048
+#             }
+#         }
+#
+#         proposals = aes256-sha256-modp2048
+#     }
+# }
+
+# Notes for TailSwan usage:
+#
+# 1. The local_ts (local traffic selectors) subnets should match or include
+#    the subnets you advertise to Tailscale via TS_ROUTES environment variable
+#
+# 2. When using start_action = trap, the tunnel will be established when
+#    traffic matching the selectors is detected
+#
+# 3. When using start_action = start, the tunnel will be initiated immediately
+#    You can also manually initiate with: swanctl --initiate --child <name>
+#
+# 4. To advertise IPsec subnets to Tailscale, set TS_ROUTES to match your
+#    local_ts and/or remote_ts subnets
+#
+# 5. For certificate-based auth, place certificates in:
+#    - Server certs: /etc/swanctl/x509/
+#    - CA certs: /etc/swanctl/x509ca/
+#    - Private keys: /etc/swanctl/private/

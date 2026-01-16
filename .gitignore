@@ -1,0 +1,43 @@
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# Certificates and keys
+certs/
+*.key
+*.pem
+*.crt
+*.p12
+*.der
+
+# Configuration files with secrets
+swanctl.conf
+ipsec.conf
+ipsec.secrets
+
+# Tailscale state
+tailscale-state/
+
+# Docker volumes
+volumes/
+
+# Logs
+*.log
+logs/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+*.tar
+*.tar.gz
+
+# Temporary files
+tmp/
+temp/
