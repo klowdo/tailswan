@@ -2,7 +2,12 @@ version: '3.8'
 
 services:
   tailswan:
-    build: .
+    # Use pre-built image from GitHub Container Registry
+    image: ghcr.io/klowdo/tailswan:latest
+
+    # Or build locally by commenting out 'image:' and uncommenting 'build:'
+    # build: .
+
     container_name: tailswan
     hostname: tailswan
     restart: unless-stopped

@@ -38,6 +38,20 @@ TailSwan allows you to connect existing IPsec VPN networks to your Tailscale net
 - Tailscale account
 - IPsec peer configuration details
 
+### Pre-built Images
+
+TailSwan images are automatically built and published to GitHub Container Registry:
+
+```bash
+# Pull the latest image from GHCR
+docker pull ghcr.io/klowdo/tailswan:latest
+
+# Or use a specific version
+docker pull ghcr.io/klowdo/tailswan:v1.0.0
+```
+
+Supported platforms: `linux/amd64`, `linux/arm64`
+
 ### Basic Usage
 
 1. **Create a swanctl configuration file** (`swanctl.conf`):
@@ -93,7 +107,7 @@ docker run -d \
   -e TS_ROUTES=10.1.0.0/24,10.2.0.0/24 \
   -e TS_HOSTNAME=tailswan-gateway \
   -e TS_SSH=true \
-  tailswan:latest
+  ghcr.io/klowdo/tailswan:latest
 ```
 
 3. **Approve routes in Tailscale admin console**:
