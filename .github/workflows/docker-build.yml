@@ -29,7 +29,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -37,7 +37,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request' && secrets.DOCKER_USERNAME != ''
+        if: startsWith(github.ref, 'refs/tags/v') && secrets.DOCKER_USERNAME != ''
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -66,8 +66,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          # Only push to registry on main, develop, or tags
-          push: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/tags/')) }}
+          # Only push to registry on version tags
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -78,28 +78,31 @@ jobs:
         run: echo ${{ steps.meta.outputs.digest }}
 
       - name: Summary
-        if: github.event_name != 'pull_request'
         run: |
           echo "## Docker Image Built Successfully! 🐳" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Check if we pushed to registry
-          if [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == "refs/heads/develop" || "${{ github.ref }}" == refs/tags/* ]]; then
+          # Check if we pushed to registry (only on tags)
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "### 📦 Published to:" >> $GITHUB_STEP_SUMMARY
-            echo "- **GitHub Container Registry**: \`ghcr.io/${{ github.repository }}:latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **GitHub Container Registry**: \`ghcr.io/${{ github.repository }}:${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
             if [ -n "${{ secrets.DOCKER_USERNAME }}" ]; then
-              echo "- **Docker Hub**: \`tailswan/tailswan:latest\`" >> $GITHUB_STEP_SUMMARY
+              echo "- **Docker Hub**: \`tailswan/tailswan:${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
             fi
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Pull the image:" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-            echo "docker pull ghcr.io/${{ github.repository }}:latest" >> $GITHUB_STEP_SUMMARY
+            echo "docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ℹ️ Build Status:" >> $GITHUB_STEP_SUMMARY
-            echo "Image built successfully but **not pushed to registry** (feature branch)." >> $GITHUB_STEP_SUMMARY
+            echo "Image built successfully but **not pushed to registry**." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Images are only published from \`main\`, \`develop\`, or version tags." >> $GITHUB_STEP_SUMMARY
+            echo "Images are only published when you create a version tag (e.g., \`v1.0.0\`)." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "To publish, merge this branch to \`main\` or \`develop\`." >> $GITHUB_STEP_SUMMARY
+            echo "### To publish a release:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "git tag v1.0.0" >> $GITHUB_STEP_SUMMARY
+            echo "git push origin v1.0.0" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
