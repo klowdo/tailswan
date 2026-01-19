@@ -27,7 +27,6 @@ LABEL org.opencontainers.image.source="https://github.com/tailswan/tailswan"
 # Install strongSwan and required utilities
 RUN apk add --no-cache \
     strongswan \
-    strongswan-swanctl \
     iptables \
     ip6tables \
     iproute2 \
@@ -60,6 +59,9 @@ COPY scripts/ /tailswan/
 
 # Make scripts executable
 RUN chmod +x /tailswan/*.sh
+
+# Copy vpn management script to root
+RUN cp /tailswan/vpn.sh /vpn && chmod +x /vpn
 
 # Enable IP forwarding (will be set in entrypoint for persistence)
 RUN echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf && \

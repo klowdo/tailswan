@@ -1,12 +1,16 @@
-.PHONY: build run stop clean logs shell help
+.PHONY: build run stop clean logs shell help push tag
 
 IMAGE_NAME := tailswan
 CONTAINER_NAME := tailswan
+REGISTRY := docker-registry.home.flixen.se
+TAG := latest
 
 help:
 	@echo "TailSwan Makefile Commands"
 	@echo ""
 	@echo "  make build       - Build the Docker image"
+	@echo "  make push        - Build, tag and push image to registry"
+	@echo "  make tag         - Tag the current image for registry"
 	@echo "  make run         - Run the container with docker-compose"
 	@echo "  make stop        - Stop the container"
 	@echo "  make clean       - Stop and remove container and volumes"
@@ -22,19 +26,19 @@ build:
 
 run:
 	@echo "Starting TailSwan..."
-	docker-compose up -d
+	docker compose up -d
 
 stop:
 	@echo "Stopping TailSwan..."
-	docker-compose down
+	docker compose down
 
 clean:
 	@echo "Cleaning up TailSwan..."
-	docker-compose down -v
+	docker compose down -v
 	docker rmi $(IMAGE_NAME):latest 2>/dev/null || true
 
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 shell:
 	@echo "Opening shell in TailSwan container..."
@@ -46,3 +50,12 @@ status:
 
 rebuild: stop build run
 	@echo "TailSwan rebuilt and restarted!"
+
+tag:
+	@echo "Tagging image for registry..."
+	docker tag $(IMAGE_NAME):$(TAG) $(REGISTRY)/$(IMAGE_NAME):$(TAG)
+
+push: build tag
+	@echo "Pushing image to registry..."
+	docker push $(REGISTRY)/$(IMAGE_NAME):$(TAG)
+	@echo "Image pushed to $(REGISTRY)/$(IMAGE_NAME):$(TAG)"

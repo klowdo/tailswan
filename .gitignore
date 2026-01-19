@@ -18,6 +18,7 @@ ipsec.secrets
 
 # Tailscale state
 tailscale-state/
+tailscale-data/
 
 # Docker volumes
 volumes/
@@ -41,3 +42,5 @@ logs/
 # Temporary files
 tmp/
 temp/
+.direnv
+config

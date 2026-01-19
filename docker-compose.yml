@@ -1,19 +1,21 @@
-version: '3.8'
-
 services:
   tailswan:
-    # Use pre-built image from GitHub Container Registry
-    image: ghcr.io/klowdo/tailswan:latest
+    # Use image from private Docker registry
+    image: docker-registry.home.flixen.se/tailswan:latest
 
     # Or build locally by commenting out 'image:' and uncommenting 'build:'
-    # build: .
+    build: .
 
     container_name: tailswan
     hostname: tailswan
     restart: unless-stopped
 
+    # Run in privileged mode for full kernel access (required for VPN functionality)
+    privileged: true
+
     # Required capabilities for VPN functionality
     cap_add:
+      
       - NET_ADMIN
       - NET_RAW
 
@@ -21,32 +23,46 @@ services:
     devices:
       - /dev/net/tun
 
-    # Environment variables
+    # Kernel parameters for IP forwarding and routing
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+      - net.ipv4.conf.all.send_redirects=0
+      - net.ipv4.conf.default.send_redirects=0
+
+    # Load environment variables from .env file
+    env_file:
+      - .env
+
+    # Environment variables (configured via .env file)
     environment:
       # Tailscale configuration
-      - TS_AUTHKEY=${TS_AUTHKEY}  # Set this in .env file or export it
-      - TS_HOSTNAME=tailswan-gateway
-      - TS_ROUTES=10.1.0.0/24,10.2.0.0/24  # Adjust to your subnets
-      - TS_SSH=true
-      # - TS_EXTRA_ARGS=--accept-routes
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_HOSTNAME=${TS_HOSTNAME:-tailswan-gateway}
+      - TS_ROUTES=${TS_ROUTES:-10.1.0.0/24,10.2.0.0/24}
+      - TS_SSH=${TS_SSH:-true}
+      - TS_EXTRA_ARGS=${TS_EXTRA_ARGS:-}
+      - TS_STATE_DIR=${TS_STATE_DIR:-/var/lib/tailscale}
 
       # strongSwan configuration
-      - SWAN_AUTO_START=false  # Set to true to auto-start connections
-      # - SWAN_CONNECTIONS=site-to-site  # Comma-separated connection names
-      - SWAN_CONFIG=/etc/swanctl/swanctl.conf
+      - SWAN_AUTO_START=${SWAN_AUTO_START:-false}
+      - SWAN_CONNECTIONS=${SWAN_CONNECTIONS:-}
+      - SWAN_CONFIG=${SWAN_CONFIG:-/etc/swanctl/swanctl.conf}
 
     # Volume mounts
     volumes:
       # Mount your swanctl configuration
-      - ./swanctl.conf:/etc/swanctl/swanctl.conf:ro
+      - ${SWANCTL_CONFIG_PATH:-./swanctl.conf}:/etc/swanctl/swanctl.conf:ro
+      - ${SWANCTL_SECRETS_CONFIG_PATH:-./swanctl-secrets.conf}:/etc/swanctl/swanctl-secrets.conf:ro
+      - ${IPSEC_SECRETS_CONFIG_PATH:-./swanctl-secrets.conf}:/etc/ipsec.secrets:ro
 
       # Mount certificate directories (if using certificate auth)
-      # - ./certs/x509:/etc/swanctl/x509:ro
-      # - ./certs/x509ca:/etc/swanctl/x509ca:ro
-      # - ./certs/private:/etc/swanctl/private:ro
+      # - ${CERTS_X509_PATH:-./certs/x509}:/etc/swanctl/x509:ro
+      # - ${CERTS_X509CA_PATH:-./certs/x509ca}:/etc/swanctl/x509ca:ro
+      # - ${CERTS_PRIVATE_PATH:-./certs/private}:/etc/swanctl/private:ro
 
       # Persist Tailscale state (optional but recommended)
-      - tailscale-state:/var/lib/tailscale
+      - ${TAILSCALE_DATA_PATH:-./tailscale-data}:/var/lib/tailscale
 
     # Health check
     healthcheck:
@@ -62,10 +78,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-volumes:
-  tailscale-state:
-    driver: local
-
-# Example .env file content:
-# TS_AUTHKEY=tskey-auth-xxxxxxxxxxxx-yyyyyyyyyyyyyyyyyyyyyyyyyyyy
