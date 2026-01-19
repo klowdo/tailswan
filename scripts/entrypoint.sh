@@ -63,17 +63,49 @@ TAILSCALED_PID=$!
 
 # Wait for tailscaled to be ready
 echo "Waiting for tailscaled to be ready..."
-for i in {1..30}; do
-    if tailscale status >/dev/null 2>&1; then
-        echo "Tailscaled is ready!"
+READY=false
+for i in {1..60}; do
+    STATUS_OUTPUT=$(tailscale status 2>&1 || true)
+    STATUS_EXIT=$?
+
+    # Check if tailscale is responding (either logged in or logged out is OK)
+    if echo "$STATUS_OUTPUT" | grep -qE "(Logged out|logged in|Health check)"; then
+        echo "✓ Tailscaled is ready and responding!"
+        echo "  Status: $STATUS_OUTPUT" | head -1
+        READY=true
         break
     fi
-    if [ $i -eq 30 ]; then
-        echo "Error: tailscaled failed to start"
-        exit 1
+
+    # Show progress
+    if [ $((i % 10)) -eq 0 ]; then
+        echo "  Still waiting for tailscaled... ($i/60 seconds)"
+        echo "  Current status output: ${STATUS_OUTPUT:-<no output>}"
     fi
+
     sleep 1
 done
+
+if [ "$READY" = "false" ]; then
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║  CONTAINER RESTART REASON: Tailscaled Failed to Start     ║"
+    echo "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "Tailscaled did not respond within 60 seconds."
+    echo ""
+    echo "Process status:"
+    ps aux | grep -E "(tailscaled|PID)" || echo "  Cannot check processes"
+    echo ""
+    echo "Socket status:"
+    ls -la "$TS_SOCKET" 2>&1 || echo "  Socket not found at $TS_SOCKET"
+    echo ""
+    echo "Tailscale status output:"
+    tailscale status 2>&1 || echo "  No status available"
+    echo ""
+    echo "This container will now exit and restart..."
+    echo "════════════════════════════════════════════════════════════"
+    exit 1
+fi
 
 # Build Tailscale up arguments
 TS_UP_ARGS="--hostname=${TS_HOSTNAME}"
@@ -116,13 +148,47 @@ echo "  swanctl --initiate --child <connection-name>"
 echo "============================================"
 
 # Monitor both processes
-trap 'kill $TAILSCALED_PID $IPSEC_PID 2>/dev/null; exit 0' SIGTERM SIGINT
+trap 'echo "Received shutdown signal, cleaning up..."; kill $TAILSCALED_PID $IPSEC_PID 2>/dev/null; exit 0' SIGTERM SIGINT
+
+echo ""
+echo "✓ TailSwan is now running and monitoring services..."
+echo "  Tailscaled PID: $TAILSCALED_PID"
+echo "  IPsec (charon) PID: $IPSEC_PID"
+echo ""
 
 # Wait for either process to exit
 wait -n $TAILSCALED_PID $IPSEC_PID
 EXIT_CODE=$?
 
-# If one exits, kill the other
+# Figure out which process died
+TAILSCALED_RUNNING=false
+IPSEC_RUNNING=false
+kill -0 $TAILSCALED_PID 2>/dev/null && TAILSCALED_RUNNING=true
+kill -0 $IPSEC_PID 2>/dev/null && IPSEC_RUNNING=true
+
+echo ""
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║         CONTAINER RESTART REASON: Process Died             ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
+
+if [ "$TAILSCALED_RUNNING" = "false" ]; then
+    echo "✗ TAILSCALED PROCESS EXITED (PID: $TAILSCALED_PID)"
+    echo "  Exit code: $EXIT_CODE"
+    echo "  This usually means Tailscale crashed or was terminated."
+fi
+
+if [ "$IPSEC_RUNNING" = "false" ]; then
+    echo "✗ IPSEC (CHARON) PROCESS EXITED (PID: $IPSEC_PID)"
+    echo "  Exit code: $EXIT_CODE"
+    echo "  This usually means strongSwan crashed or was terminated."
+fi
+
+echo ""
+echo "Cleaning up remaining processes..."
 kill $TAILSCALED_PID $IPSEC_PID 2>/dev/null
+
+echo "Container will now exit and Docker will restart it..."
+echo "════════════════════════════════════════════════════════════"
 
 exit $EXIT_CODE
