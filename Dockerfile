@@ -2,16 +2,18 @@
 # Bridges strongSwan/swanctl (IPsec) and Tailscale networks
 
 # Build stage for Tailscale
-FROM golang:1.23-alpine3.19 AS tailscale-builder
+FROM golang:1.25.6-alpine3.22 AS tailscale-builder
 
-ARG TAILSCALE_VERSION=v1.78.3
+ARG TAILSCALE_VERSION=v1.92.5
+
 
 RUN apk add --no-cache git
 
 WORKDIR /build
 
 # Clone and build Tailscale
-RUN git clone --depth=1 --branch=${TAILSCALE_VERSION} https://github.com/tailscale/tailscale.git && \
+RUN git config --global advice.detachedHead false
+RUN git clone  --single-branch  --branch=${TAILSCALE_VERSION} https://github.com/tailscale/tailscale.git && \
     cd tailscale && \
     go mod download && \
     CGO_ENABLED=0 go build -o /tailscale ./cmd/tailscale && \

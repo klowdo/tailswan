@@ -62,7 +62,7 @@ services:
       # - ${CERTS_PRIVATE_PATH:-./certs/private}:/etc/swanctl/private:ro
 
       # Persist Tailscale state (optional but recommended)
-      - ${TAILSCALE_DATA_PATH:-./tailscale-data}:/var/lib/tailscale
+      - tailscale-state:/var/lib/tailscale
 
     # Health check
     healthcheck:
@@ -78,3 +78,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  tailscale-state:
+    driver: local

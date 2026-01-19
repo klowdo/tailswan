@@ -17,12 +17,12 @@ SWAN_CONFIG=${SWAN_CONFIG:-/etc/swanctl/swanctl.conf}
 SWAN_AUTO_START=${SWAN_AUTO_START:-false}
 SWAN_CONNECTIONS=${SWAN_CONNECTIONS:-}
 
-# Enable IP forwarding (if not already set by Docker sysctls)
+# Enable IP forwarding
 echo "Enabling IP forwarding..."
-sysctl -w net.ipv4.ip_forward=1 > /dev/null 2>&1 || echo "  (already configured via Docker)"
-sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null 2>&1 || true
-sysctl -w net.ipv4.conf.all.send_redirects=0 > /dev/null 2>&1 || true
-sysctl -w net.ipv4.conf.default.send_redirects=0 > /dev/null 2>&1 || true
+sysctl -w net.ipv4.ip_forward=1 > /dev/null
+sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null
+sysctl -w net.ipv4.conf.all.send_redirects=0 > /dev/null
+sysctl -w net.ipv4.conf.default.send_redirects=0 > /dev/null
 
 # Configure iptables for NAT if needed
 echo "Setting up iptables rules..."
@@ -62,23 +62,14 @@ tailscaled --state=${TS_STATE_DIR}/tailscaled.state --socket=${TS_SOCKET} --tun=
 TAILSCALED_PID=$!
 
 # Wait for tailscaled to be ready
-echo "Waiting for tailscaled socket..."
-for i in {1..60}; do
-    if [ -S "$TS_SOCKET" ]; then
-        echo "Socket created, verifying tailscaled responds..."
-        sleep 1
-        if tailscale status 2>&1 | grep -qE "(Logged out|logged in)"; then
-            echo "Tailscaled is ready!"
-            break
-        fi
+echo "Waiting for tailscaled to be ready..."
+for i in {1..30}; do
+    if tailscale status >/dev/null 2>&1; then
+        echo "Tailscaled is ready!"
+        break
     fi
-    if [ $i -eq 60 ]; then
-        echo "Error: tailscaled failed to start within 60 seconds"
-        echo "Checking if tailscaled process is running..."
-        ps aux | grep tailscaled || true
-        echo "Socket status: $(ls -la $TS_SOCKET 2>&1 || echo 'socket not found')"
-        echo "Tailscale status output:"
-        tailscale status 2>&1 || true
+    if [ $i -eq 30 ]; then
+        echo "Error: tailscaled failed to start"
         exit 1
     fi
     sleep 1
