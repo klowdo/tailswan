@@ -3,7 +3,7 @@ package sse
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -66,7 +66,7 @@ func (eb *EventBroadcaster) RegisterClient(ch chan models.SSEMessage) {
 	eb.clientsMux.Lock()
 	defer eb.clientsMux.Unlock()
 	eb.clients[ch] = true
-	log.Printf("SSE client connected (total: %d)", len(eb.clients))
+	slog.Info("SSE client connected", "total", len(eb.clients))
 }
 
 func (eb *EventBroadcaster) UnregisterClient(ch chan models.SSEMessage) {
@@ -75,7 +75,7 @@ func (eb *EventBroadcaster) UnregisterClient(ch chan models.SSEMessage) {
 	if _, ok := eb.clients[ch]; ok {
 		delete(eb.clients, ch)
 		close(ch)
-		log.Printf("SSE client disconnected (total: %d)", len(eb.clients))
+		slog.Info("SSE client disconnected", "total", len(eb.clients))
 	}
 }
 
@@ -187,7 +187,7 @@ func (eb *EventBroadcaster) fetchSAs() map[string]interface{} {
 	msg := vici.NewMessage()
 	messages, err := eb.viciSession.StreamedCommandRequest("list-sas", "list-sa", msg)
 	if err != nil {
-		log.Printf("Error fetching SAs: %v", err)
+		slog.Info("Error fetching SAs: %v", err)
 		return map[string]interface{}{"success": false, "sas": []map[string]interface{}{}}
 	}
 
@@ -210,7 +210,7 @@ func (eb *EventBroadcaster) fetchPeers() map[string]interface{} {
 	ctx := context.Background()
 	status, err := eb.tailscaleClient.Status(ctx)
 	if err != nil {
-		log.Printf("Error fetching peers: %v", err)
+		slog.Info("Error fetching peers: %v", err)
 		return map[string]interface{}{"success": false, "peers": []map[string]interface{}{}}
 	}
 
@@ -239,7 +239,7 @@ func (eb *EventBroadcaster) fetchConnections() map[string]interface{} {
 	msg := vici.NewMessage()
 	messages, err := eb.viciSession.StreamedCommandRequest("list-conns", "list-conn", msg)
 	if err != nil {
-		log.Printf("Error fetching connections: %v", err)
+		slog.Info("Error fetching connections: %v", err)
 		return map[string]interface{}{"success": false, "connections": []map[string]interface{}{}}
 	}
 
@@ -262,7 +262,7 @@ func (eb *EventBroadcaster) fetchNodeStatus() map[string]interface{} {
 	ctx := context.Background()
 	status, err := eb.tailscaleClient.Status(ctx)
 	if err != nil {
-		log.Printf("Error fetching node status: %v", err)
+		slog.Info("Error fetching node status: %v", err)
 		return map[string]interface{}{"success": false}
 	}
 

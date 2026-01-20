@@ -1,65 +1,168 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/klowdo/tailswan/internal/config"
+	"github.com/klowdo/tailswan/internal/supervisor"
+	"github.com/spf13/cobra"
+)
+
+var (
+	cfg    *config.Config
+	logger *slog.Logger
 )
 
 func main() {
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "healthcheck":
-			runHealthCheck()
-		case "status":
-			runStatus()
-		case "connections", "conns":
-			runConnections()
-		case "sas":
-			runSAs()
-		case "start":
-			runStart(os.Args[2:])
-		case "stop":
-			runStop(os.Args[2:])
-		case "reload":
-			runReload()
-		case "help", "-h", "--help":
-			printHelp()
-		default:
-			fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
-			fmt.Fprintln(os.Stderr, "Run 'tailswan help' for usage information")
-			os.Exit(1)
-		}
-		return
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-
-	runSupervisor()
 }
 
-func printHelp() {
-	fmt.Println("TailSwan - IPsec & Tailscale VPN Supervisor")
-	fmt.Println()
-	fmt.Println("USAGE:")
-	fmt.Println("  tailswan                    Run supervisor (start all services)")
-	fmt.Println("  tailswan healthcheck        Check if all services are healthy")
-	fmt.Println("  tailswan status             Show status of all services")
-	fmt.Println("  tailswan connections        List strongSwan connections")
-	fmt.Println("  tailswan sas                List security associations")
-	fmt.Println("  tailswan start <conn>       Initiate a connection")
-	fmt.Println("  tailswan stop <conn>        Terminate a connection")
-	fmt.Println("  tailswan reload             Reload strongSwan configuration")
-	fmt.Println("  tailswan help               Show this help message")
-	fmt.Println()
-	fmt.Println("ENVIRONMENT VARIABLES:")
-	fmt.Println("  CONTROL_PORT               Control server port (default: 8080)")
-	fmt.Println("  USE_TSNET                  Use tsnet instead of Tailscale Serve (true/false)")
-	fmt.Println("  TS_STATE_DIR               Tailscale state directory")
-	fmt.Println("  TS_SOCKET                  Tailscale socket path")
-	fmt.Println("  TS_HOSTNAME                Tailscale hostname")
-	fmt.Println("  TS_AUTHKEY                 Tailscale auth key")
-	fmt.Println("  TS_ROUTES                  Tailscale routes (comma-separated)")
-	fmt.Println("  TS_SSH                     Enable Tailscale SSH (true/false)")
-	fmt.Println("  TS_EXTRA_ARGS              Extra tailscale up arguments")
-	fmt.Println("  SWAN_CONFIG                Path to swanctl.conf")
-	fmt.Println("  SWAN_AUTO_START            Auto-start connections (true/false)")
-	fmt.Println("  SWAN_CONNECTIONS           Connections to auto-start (comma-separated)")
+var rootCmd = &cobra.Command{
+	Use:   "tailswan",
+	Short: "TailSwan - IPsec & Tailscale VPN Supervisor",
+	Long:  `TailSwan is a unified supervisor for managing strongSwan IPsec and Tailscale VPN connections.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		cfg = config.Load()
+		initLogger(cfg)
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		runSupervisor()
+	},
+}
+
+var healthCheckCmd = &cobra.Command{
+	Use:   "healthcheck",
+	Short: "Check if all services are healthy",
+	Run: func(cmd *cobra.Command, args []string) {
+		runHealthCheck()
+	},
+}
+
+var statusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Show status of all services",
+	Run: func(cmd *cobra.Command, args []string) {
+		runStatus()
+	},
+}
+
+var connectionsCmd = &cobra.Command{
+	Use:     "connections",
+	Aliases: []string{"conns"},
+	Short:   "List strongSwan connections",
+	Run: func(cmd *cobra.Command, args []string) {
+		runConnections()
+	},
+}
+
+var sasCmd = &cobra.Command{
+	Use:   "sas",
+	Short: "List security associations",
+	Run: func(cmd *cobra.Command, args []string) {
+		runSAs()
+	},
+}
+
+var startCmd = &cobra.Command{
+	Use:   "start <connection>",
+	Short: "Initiate a connection",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runStart(args)
+	},
+}
+
+var stopCmd = &cobra.Command{
+	Use:   "stop <connection>",
+	Short: "Terminate a connection",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runStop(args)
+	},
+}
+
+var reloadCmd = &cobra.Command{
+	Use:   "reload",
+	Short: "Reload strongSwan configuration",
+	Run: func(cmd *cobra.Command, args []string) {
+		runReload()
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(
+		healthCheckCmd,
+		statusCmd,
+		connectionsCmd,
+		sasCmd,
+		startCmd,
+		stopCmd,
+		reloadCmd,
+	)
+}
+
+func initLogger(cfg *config.Config) {
+	opts := &slog.HandlerOptions{
+		Level: cfg.GetLogLevel(),
+	}
+	handler := slog.NewTextHandler(os.Stdout, opts)
+	logger = slog.New(handler)
+	slog.SetDefault(logger)
+}
+
+func runSupervisor() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+
+	supervisorCfg := supervisor.Config{
+		ControlPort:       cfg.Port,
+		TailscaleStateDir: cfg.Tailscale.StateDir,
+		TailscaleSocket:   cfg.Tailscale.Socket,
+		UseTsnet:          cfg.Tailscale.UseTsnet,
+		TailscaleConfig: supervisor.TailscaleConfig{
+			StateDir:  cfg.Tailscale.StateDir,
+			Socket:    cfg.Tailscale.Socket,
+			Hostname:  cfg.Tailscale.Hostname,
+			AuthKey:   cfg.Tailscale.AuthKey,
+			Routes:    cfg.Tailscale.Routes,
+			SSH:       cfg.Tailscale.SSH,
+			ExtraArgs: cfg.Tailscale.ExtraArgs,
+		},
+		SwanConfigPath:  cfg.Swan.ConfigPath,
+		SwanAutoStart:   cfg.Swan.AutoStart,
+		SwanConnections: cfg.Swan.Connections,
+	}
+
+	if err := supervisor.SetupSystem(); err != nil {
+		slog.Error("System setup failed", "error", err)
+		os.Exit(1)
+	}
+
+	sup := supervisor.New(supervisorCfg)
+
+	if err := sup.Start(ctx); err != nil {
+		slog.Error("Supervisor start failed", "error", err)
+		os.Exit(1)
+	}
+
+	select {
+	case sig := <-sigChan:
+		slog.Info("Received signal, shutting down", "signal", sig)
+		sup.Stop()
+	case err := <-sup.Errors():
+		slog.Error("Process died", "error", err)
+		sup.Stop()
+		os.Exit(1)
+	}
 }

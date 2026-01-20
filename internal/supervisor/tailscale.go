@@ -3,7 +3,7 @@ package supervisor
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -47,12 +47,12 @@ func (ts *TailscaleService) WaitReady(ctx context.Context) error {
 
 			_, err := ts.client.Status(ctx)
 			if err == nil {
-				log.Println("✓ Tailscaled is ready")
+				slog.Info("✓ Tailscaled is ready")
 				return nil
 			}
 
 			if attempts%10 == 0 {
-				log.Printf("Still waiting for tailscaled... (%d/60 seconds)", attempts)
+				slog.Info("Still waiting for tailscaled... (%d/60 seconds)", attempts)
 			}
 		}
 	}
@@ -68,17 +68,17 @@ func (ts *TailscaleService) Up(cfg TailscaleConfig) error {
 	if len(cfg.Routes) > 0 {
 		routes := strings.Join(cfg.Routes, ",")
 		args = append(args, "--advertise-routes="+routes)
-		log.Printf("Advertising routes: %s", routes)
+		slog.Info("Advertising routes: %s", routes)
 	}
 
 	if cfg.SSH {
 		args = append(args, "--ssh")
-		log.Println("Enabling Tailscale SSH")
+		slog.Info("Enabling Tailscale SSH")
 	}
 
 	args = append(args, cfg.ExtraArgs...)
 
-	log.Printf("Bringing up Tailscale: tailscale %s", strings.Join(args, " "))
+	slog.Info("Bringing up Tailscale: tailscale %s", strings.Join(args, " "))
 
 	cmd := exec.Command("tailscale", args...)
 	cmd.Stdout = os.Stdout
@@ -113,11 +113,11 @@ func (ts *TailscaleService) EnableServe(port string) error {
 		return fmt.Errorf("failed to set serve config: %w", err)
 	}
 
-	log.Println("✓ Control server available via Tailscale Serve (HTTP and HTTPS)")
+	slog.Info("✓ Control server available via Tailscale Serve (HTTP and HTTPS)")
 
 	serveStatus, err := ts.client.GetServeConfig(ctx)
 	if err == nil && serveStatus != nil {
-		log.Printf("Serve config: %+v", serveStatus)
+		slog.Info("Serve config: %+v", serveStatus)
 	}
 
 	return nil

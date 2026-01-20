@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 
@@ -23,6 +24,7 @@ func runStatus() {
 func runConnections() {
 	sw := &supervisor.SwanService{}
 	if err := sw.ListConnections(); err != nil {
+		slog.Error("Failed to list connections", "error", err)
 		os.Exit(1)
 	}
 }
@@ -30,13 +32,14 @@ func runConnections() {
 func runSAs() {
 	sw := &supervisor.SwanService{}
 	if err := sw.ListSAs(); err != nil {
+		slog.Error("Failed to list SAs", "error", err)
 		os.Exit(1)
 	}
 }
 
 func runStart(args []string) {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Error: connection name required")
+		slog.Error("Connection name required")
 		fmt.Fprintln(os.Stderr, "Usage: tailswan start <connection>")
 		os.Exit(1)
 	}
@@ -44,15 +47,15 @@ func runStart(args []string) {
 	conn := args[0]
 	sw := &supervisor.SwanService{}
 	if err := sw.Initiate(conn); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		slog.Error("Failed to start connection", "connection", conn, "error", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Connection '%s' initiated\n", conn)
+	slog.Info("Connection initiated", "connection", conn)
 }
 
 func runStop(args []string) {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Error: connection name required")
+		slog.Error("Connection name required")
 		fmt.Fprintln(os.Stderr, "Usage: tailswan stop <connection>")
 		os.Exit(1)
 	}
@@ -60,25 +63,25 @@ func runStop(args []string) {
 	conn := args[0]
 	sw := &supervisor.SwanService{}
 	if err := sw.Terminate(conn); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		slog.Error("Failed to stop connection", "connection", conn, "error", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Connection '%s' terminated\n", conn)
+	slog.Info("Connection terminated", "connection", conn)
 }
 
 func runReload() {
 	sw := &supervisor.SwanService{}
 	if err := sw.Reload(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		slog.Error("Failed to reload configuration", "error", err)
 		os.Exit(1)
 	}
-	fmt.Println("Configuration reloaded")
+	slog.Info("Configuration reloaded")
 }
 
 func runHealthCheck() {
 	if err := supervisor.HealthCheck(); err != nil {
-		fmt.Fprintf(os.Stderr, "Health check failed: %v\n", err)
+		slog.Error("Health check failed", "error", err)
 		os.Exit(1)
 	}
-	fmt.Println("All services healthy")
+	slog.Info("All services healthy")
 }

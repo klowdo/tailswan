@@ -2,7 +2,7 @@ package supervisor
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 )
@@ -14,7 +14,7 @@ func (sw *SwanService) LoadConfig(path string) error {
 		return fmt.Errorf("config not found: %s", path)
 	}
 
-	log.Printf("Loading swanctl configuration from %s...", path)
+	slog.Info("Loading swanctl configuration", "path", path)
 
 	cmd := exec.Command("swanctl", "--load-all")
 	cmd.Stdout = os.Stdout
@@ -24,7 +24,7 @@ func (sw *SwanService) LoadConfig(path string) error {
 }
 
 func (sw *SwanService) Initiate(connection string) error {
-	log.Printf("Initiating connection: %s", connection)
+	slog.Info("Initiating connection: %s", connection)
 
 	cmd := exec.Command("swanctl", "--initiate", "--child", connection)
 	output, err := cmd.CombinedOutput()
@@ -37,7 +37,7 @@ func (sw *SwanService) Initiate(connection string) error {
 }
 
 func (sw *SwanService) Terminate(connection string) error {
-	log.Printf("Terminating connection: %s", connection)
+	slog.Info("Terminating connection: %s", connection)
 
 	cmd := exec.Command("swanctl", "--terminate", "--ike", connection)
 	output, err := cmd.CombinedOutput()
@@ -64,7 +64,7 @@ func (sw *SwanService) ListSAs() error {
 }
 
 func (sw *SwanService) Reload() error {
-	log.Println("Reloading swanctl configuration...")
+	slog.Info("Reloading swanctl configuration...")
 	cmd := exec.Command("swanctl", "--load-all")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

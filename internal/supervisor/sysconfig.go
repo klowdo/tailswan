@@ -2,12 +2,12 @@ package supervisor
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os/exec"
 )
 
 func SetupSystem() error {
-	log.Println("Enabling IP forwarding...")
+	slog.Info("Enabling IP forwarding...")
 
 	sysctlParams := []struct{ key, value string }{
 		{"net.ipv4.ip_forward", "1"},
@@ -23,7 +23,7 @@ func SetupSystem() error {
 		}
 	}
 
-	log.Println("Setting up iptables rules...")
+	slog.Info("Setting up iptables rules...")
 
 	iptablesRules := [][]string{
 		{"iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "tailscale0", "-j", "MASQUERADE"},

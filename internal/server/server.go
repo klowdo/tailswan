@@ -3,8 +3,9 @@ package server
 import (
 	"context"
 	"embed"
+	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -82,24 +83,24 @@ func (s *Server) Start() error {
 	go s.broadcaster.Start(ctx)
 
 	addr := s.config.Address()
-	log.Printf("Starting TailSwan control server on %s", addr)
-	log.Println("Web UI available at: http://localhost:%s/", s.config.Port)
-	log.Println("")
-	log.Println("API endpoints:")
-	log.Println("  GET  /api/health                      - Health check")
-	log.Println("  GET  /api/events                      - Server-Sent Events stream")
-	log.Println("")
-	log.Println("  VICI (strongSwan):")
-	log.Println("    POST /api/vici/connections/up       - Bring connection up")
-	log.Println("    POST /api/vici/connections/down     - Bring connection down")
-	log.Println("    GET  /api/vici/connections/list     - List all connections")
-	log.Println("    GET  /api/vici/sas/list             - List security associations")
-	log.Println("")
-	log.Println("  Tailscale:")
-	log.Println("    GET  /api/tailscale/status          - Tailscale status")
-	log.Println("    GET  /api/tailscale/peers           - List all peers")
-	log.Println("    GET  /api/tailscale/serve           - Tailscale Serve configuration")
-	log.Println("    GET  /api/tailscale/whois           - WhoIs lookup")
+	slog.Info("Starting TailSwan control server", "address", addr)
+	slog.Info("Web UI available", "url", fmt.Sprintf("http://localhost:%s/", s.config.Port))
+	slog.Info("")
+	slog.Info("API endpoints:")
+	slog.Info("  GET  /api/health                      - Health check")
+	slog.Info("  GET  /api/events                      - Server-Sent Events stream")
+	slog.Info("")
+	slog.Info("  VICI (strongSwan):")
+	slog.Info("    POST /api/vici/connections/up       - Bring connection up")
+	slog.Info("    POST /api/vici/connections/down     - Bring connection down")
+	slog.Info("    GET  /api/vici/connections/list     - List all connections")
+	slog.Info("    GET  /api/vici/sas/list             - List security associations")
+	slog.Info("")
+	slog.Info("  Tailscale:")
+	slog.Info("    GET  /api/tailscale/status          - Tailscale status")
+	slog.Info("    GET  /api/tailscale/peers           - List all peers")
+	slog.Info("    GET  /api/tailscale/serve           - Tailscale Serve configuration")
+	slog.Info("    GET  /api/tailscale/whois           - WhoIs lookup")
 
 	return http.ListenAndServe(addr, s.mux)
 }
@@ -131,7 +132,7 @@ func (s *Server) StartWithTsnet(hostname, authKey string, routes []string) error
 	s.tsHandler.SetClient(localClient)
 	s.broadcaster.SetTailscaleClient(localClient)
 
-	log.Println("Waiting for tsnet to be ready...")
+	slog.Info("Waiting for tsnet to be ready...")
 	dnsName := ""
 	for i := 0; i < 30; i++ {
 		st, e := localClient.StatusWithoutPeers(ctx)
@@ -142,35 +143,35 @@ func (s *Server) StartWithTsnet(hostname, authKey string, routes []string) error
 		time.Sleep(1 * time.Second)
 	}
 
-	log.Printf("Starting TailSwan control server")
-	log.Printf("Local access: http://localhost:%s/", s.config.Port)
+	slog.Info("Starting TailSwan control server")
+	slog.Info("Local access", "url", fmt.Sprintf("http://localhost:%s/", s.config.Port))
 	if dnsName != "" {
 		dnsName = strings.TrimSuffix(dnsName, ".")
-		log.Printf("Tailscale access: https://%s/", dnsName)
+		slog.Info("Tailscale access", "url", fmt.Sprintf("https://%s/", dnsName))
 	} else {
-		log.Println("Tailscale DNS name not yet available")
+		slog.Info("Tailscale DNS name not yet available")
 	}
-	log.Println("")
-	log.Println("API endpoints:")
-	log.Println("  GET  /api/health                      - Health check")
-	log.Println("  GET  /api/events                      - Server-Sent Events stream")
-	log.Println("")
-	log.Println("  VICI (strongSwan):")
-	log.Println("    POST /api/vici/connections/up       - Bring connection up")
-	log.Println("    POST /api/vici/connections/down     - Bring connection down")
-	log.Println("    GET  /api/vici/connections/list     - List all connections")
-	log.Println("    GET  /api/vici/sas/list             - List security associations")
-	log.Println("")
-	log.Println("  Tailscale:")
-	log.Println("    GET  /api/tailscale/status          - Tailscale status")
-	log.Println("    GET  /api/tailscale/peers           - List all peers")
-	log.Println("    GET  /api/tailscale/serve           - Tailscale Serve configuration")
-	log.Println("    GET  /api/tailscale/whois           - WhoIs lookup")
+	slog.Info("")
+	slog.Info("API endpoints:")
+	slog.Info("  GET  /api/health                      - Health check")
+	slog.Info("  GET  /api/events                      - Server-Sent Events stream")
+	slog.Info("")
+	slog.Info("  VICI (strongSwan):")
+	slog.Info("    POST /api/vici/connections/up       - Bring connection up")
+	slog.Info("    POST /api/vici/connections/down     - Bring connection down")
+	slog.Info("    GET  /api/vici/connections/list     - List all connections")
+	slog.Info("    GET  /api/vici/sas/list             - List security associations")
+	slog.Info("")
+	slog.Info("  Tailscale:")
+	slog.Info("    GET  /api/tailscale/status          - Tailscale status")
+	slog.Info("    GET  /api/tailscale/peers           - List all peers")
+	slog.Info("    GET  /api/tailscale/serve           - Tailscale Serve configuration")
+	slog.Info("    GET  /api/tailscale/whois           - WhoIs lookup")
 
 	go func() {
-		log.Println("Starting tsnet HTTPS server on :443...")
+		slog.Info("Starting tsnet HTTPS server on :443...")
 		if err := http.Serve(s.tsnetListener, s.mux); err != nil {
-			log.Printf("tsnet server error: %v", err)
+			slog.Info("tsnet server error: %v", err)
 		}
 	}()
 

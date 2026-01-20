@@ -2,7 +2,7 @@ package supervisor
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"sync"
@@ -31,7 +31,7 @@ func (p *Process) Start(name string, args ...string) error {
 	}
 
 	p.started = time.Now()
-	log.Printf("Started %s (PID: %d)", name, p.cmd.Process.Pid)
+	slog.Info("Started process", "name", name, "pid", p.cmd.Process.Pid)
 	return nil
 }
 
@@ -50,7 +50,7 @@ func (p *Process) Kill() error {
 		return nil
 	}
 
-	log.Printf("Stopping %s (PID: %d)", p.name, p.cmd.Process.Pid)
+	slog.Info("Stopping process", "name", p.name, "pid", p.cmd.Process.Pid)
 	return p.cmd.Process.Signal(syscall.SIGTERM)
 }
 
