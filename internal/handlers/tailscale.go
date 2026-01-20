@@ -18,6 +18,10 @@ func NewTailscaleHandler() *TailscaleHandler {
 	}
 }
 
+func (h *TailscaleHandler) LocalClient() *tailscale.LocalClient {
+	return h.client
+}
+
 func (h *TailscaleHandler) Status(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

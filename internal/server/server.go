@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"embed"
 	"io/fs"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"github.com/klowdo/tailswan/internal/config"
 	"github.com/klowdo/tailswan/internal/handlers"
 	"github.com/klowdo/tailswan/internal/routes"
+	"github.com/klowdo/tailswan/internal/sse"
 )
 
 type Server struct {
@@ -16,6 +18,8 @@ type Server struct {
 	viciHandler   *handlers.VICIHandler
 	tsHandler     *handlers.TailscaleHandler
 	healthHandler *handlers.HealthHandler
+	broadcaster   *sse.EventBroadcaster
+	cancel        context.CancelFunc
 	mux           *http.ServeMux
 }
 
@@ -27,6 +31,9 @@ func New(cfg *config.Config, webFS embed.FS) (*Server, error) {
 
 	tsHandler := handlers.NewTailscaleHandler()
 	healthHandler := handlers.NewHealthHandler()
+
+	broadcaster := sse.NewEventBroadcaster(viciHandler.Session(), tsHandler.LocalClient())
+	sseHandler := handlers.NewSSEHandler(broadcaster)
 
 	mux := http.NewServeMux()
 
@@ -50,24 +57,31 @@ func New(cfg *config.Config, webFS embed.FS) (*Server, error) {
 		}
 	})
 
-	routes.RegisterRoutes(mux, viciHandler, tsHandler, healthHandler)
+	routes.RegisterRoutes(mux, viciHandler, tsHandler, healthHandler, sseHandler)
 
 	return &Server{
 		config:        cfg,
 		viciHandler:   viciHandler,
 		tsHandler:     tsHandler,
 		healthHandler: healthHandler,
+		broadcaster:   broadcaster,
 		mux:           mux,
 	}, nil
 }
 
 func (s *Server) Start() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+
+	go s.broadcaster.Start(ctx)
+
 	addr := s.config.Address()
 	log.Printf("Starting TailSwan control server on %s", addr)
 	log.Println("Web UI available at: http://localhost:%s/", s.config.Port)
 	log.Println("")
 	log.Println("API endpoints:")
 	log.Println("  GET  /api/health                      - Health check")
+	log.Println("  GET  /api/events                      - Server-Sent Events stream")
 	log.Println("")
 	log.Println("  VICI (strongSwan):")
 	log.Println("    POST /api/vici/connections/up       - Bring connection up")
@@ -85,6 +99,14 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Close() {
+	if s.cancel != nil {
+		s.cancel()
+	}
+
+	if s.broadcaster != nil {
+		s.broadcaster.Stop()
+	}
+
 	if s.viciHandler != nil {
 		s.viciHandler.Close()
 	}

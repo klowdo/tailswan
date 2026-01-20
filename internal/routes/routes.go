@@ -6,8 +6,9 @@ import (
 	"github.com/klowdo/tailswan/internal/handlers"
 )
 
-func RegisterRoutes(mux *http.ServeMux, viciHandler *handlers.VICIHandler, tsHandler *handlers.TailscaleHandler, healthHandler *handlers.HealthHandler) {
+func RegisterRoutes(mux *http.ServeMux, viciHandler *handlers.VICIHandler, tsHandler *handlers.TailscaleHandler, healthHandler *handlers.HealthHandler, sseHandler *handlers.SSEHandler) {
 	mux.HandleFunc("/api/health", healthHandler.Check)
+	mux.HandleFunc("/api/events", sseHandler.Events)
 
 	mux.HandleFunc("/api/vici/connections/up", viciHandler.ConnectionUp)
 	mux.HandleFunc("/api/vici/connections/down", viciHandler.ConnectionDown)

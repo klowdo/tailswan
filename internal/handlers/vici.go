@@ -30,6 +30,10 @@ func (h *VICIHandler) Close() {
 	}
 }
 
+func (h *VICIHandler) Session() *vici.Session {
+	return h.session
+}
+
 func (h *VICIHandler) ConnectionUp(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

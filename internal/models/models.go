@@ -19,3 +19,8 @@ type SAsResponse struct {
 	Success bool                     `json:"success"`
 	SAs     []map[string]interface{} `json:"sas"`
 }
+
+type SSEMessage struct {
+	Event string
+	Data  []byte
+}

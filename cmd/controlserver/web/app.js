@@ -1,6 +1,8 @@
 const API_BASE = '/api';
 
-let autoRefreshInterval = null;
+let eventSource = null;
+let reconnectDelay = 1000;
+const maxReconnectDelay = 30000;
 let currentTab = 'ipsec';
 
 function switchTab(tab) {
@@ -70,36 +72,43 @@ async function loadConnections() {
     try {
         const response = await fetch(`${API_BASE}/vici/connections/list`);
         const data = await response.json();
-
-        if (!data.success) {
-            throw new Error('Failed to load connections');
-        }
-
-        if (!data.connections || data.connections.length === 0) {
-            container.innerHTML = '<div class="empty-state">No connections configured</div>';
-            return;
-        }
-
-        container.innerHTML = data.connections.map((conn, index) => {
-            const connName = Object.keys(conn)[0] || `connection-${index}`;
-            return `
-                <div class="connection-item">
-                    <div class="connection-info">
-                        <div class="connection-name">${escapeHtml(connName)}</div>
-                        <div class="connection-details">
-                            ${getConnectionDetails(conn[connName])}
-                        </div>
-                    </div>
-                    <div class="connection-actions">
-                        <button onclick="bringConnectionUpByName('${escapeHtml(connName)}')" class="btn btn-success btn-sm">▲ Up</button>
-                        <button onclick="bringConnectionDownByName('${escapeHtml(connName)}')" class="btn btn-danger btn-sm">▼ Down</button>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        updateConnectionsList(data);
     } catch (error) {
+        const container = document.getElementById('connections-list');
         container.innerHTML = `<div class="empty-state">Error loading connections: ${escapeHtml(error.message)}</div>`;
     }
+}
+
+function updateConnectionsList(data) {
+    const container = document.getElementById('connections-list');
+
+    if (!data.success) {
+        container.innerHTML = '<div class="empty-state">Failed to load connections</div>';
+        return;
+    }
+
+    if (!data.connections || data.connections.length === 0) {
+        container.innerHTML = '<div class="empty-state">No connections configured</div>';
+        return;
+    }
+
+    container.innerHTML = data.connections.map((conn, index) => {
+        const connName = Object.keys(conn)[0] || `connection-${index}`;
+        return `
+            <div class="connection-item">
+                <div class="connection-info">
+                    <div class="connection-name">${escapeHtml(connName)}</div>
+                    <div class="connection-details">
+                        ${getConnectionDetails(conn[connName])}
+                    </div>
+                </div>
+                <div class="connection-actions">
+                    <button onclick="bringConnectionUpByName('${escapeHtml(connName)}')" class="btn btn-success btn-sm">▲ Up</button>
+                    <button onclick="bringConnectionDownByName('${escapeHtml(connName)}')" class="btn btn-danger btn-sm">▼ Down</button>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 async function loadSAs() {
@@ -109,32 +118,39 @@ async function loadSAs() {
     try {
         const response = await fetch(`${API_BASE}/vici/sas/list`);
         const data = await response.json();
-
-        if (!data.success) {
-            throw new Error('Failed to load security associations');
-        }
-
-        if (!data.sas || data.sas.length === 0) {
-            container.innerHTML = '<div class="empty-state">No active security associations</div>';
-            return;
-        }
-
-        container.innerHTML = data.sas.map((sa, index) => {
-            const saName = Object.keys(sa)[0] || `sa-${index}`;
-            return `
-                <div class="sa-item">
-                    <div class="sa-info">
-                        <div class="sa-name">${escapeHtml(saName)}</div>
-                        <div class="sa-details">
-                            ${getSADetails(sa[saName])}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        updateSAsList(data);
     } catch (error) {
+        const container = document.getElementById('sas-list');
         container.innerHTML = `<div class="empty-state">Error loading SAs: ${escapeHtml(error.message)}</div>`;
     }
+}
+
+function updateSAsList(data) {
+    const container = document.getElementById('sas-list');
+
+    if (!data.success) {
+        container.innerHTML = '<div class="empty-state">Failed to load security associations</div>';
+        return;
+    }
+
+    if (!data.sas || data.sas.length === 0) {
+        container.innerHTML = '<div class="empty-state">No active security associations</div>';
+        return;
+    }
+
+    container.innerHTML = data.sas.map((sa, index) => {
+        const saName = Object.keys(sa)[0] || `sa-${index}`;
+        return `
+            <div class="sa-item">
+                <div class="sa-info">
+                    <div class="sa-name">${escapeHtml(saName)}</div>
+                    <div class="sa-details">
+                        ${getSADetails(sa[saName])}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function getConnectionDetails(conn) {
@@ -312,43 +328,50 @@ async function loadTailscaleStatus() {
     try {
         const response = await fetch(`${API_BASE}/tailscale/status`);
         const data = await response.json();
-
-        if (!data.success || !data.status) {
-            throw new Error('Failed to load Tailscale status');
-        }
-
-        const status = data.status;
-        const self = status.Self;
-
-        container.innerHTML = `
-            <div class="info-item">
-                <div class="info-label">State</div>
-                <div class="info-value">${escapeHtml(status.BackendState || 'Unknown')}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Hostname</div>
-                <div class="info-value">${escapeHtml(self.HostName || 'N/A')}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Tailscale IP</div>
-                <div class="info-value">${escapeHtml(self.TailscaleIPs && self.TailscaleIPs[0] || 'N/A')}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">DNS Name</div>
-                <div class="info-value">${escapeHtml(self.DNSName || 'N/A')}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Online</div>
-                <div class="info-value">${self.Online ? '✓ Yes' : '✗ No'}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">OS</div>
-                <div class="info-value">${escapeHtml(self.OS || 'N/A')}</div>
-            </div>
-        `;
+        updateTailscaleStatus(data);
     } catch (error) {
+        const container = document.getElementById('tailscale-info');
         container.innerHTML = `<div class="empty-state">Error loading Tailscale status: ${escapeHtml(error.message)}</div>`;
     }
+}
+
+function updateTailscaleStatus(data) {
+    const container = document.getElementById('tailscale-info');
+
+    if (!data.success || !data.status) {
+        container.innerHTML = '<div class="empty-state">Failed to load Tailscale status</div>';
+        return;
+    }
+
+    const status = data.status;
+    const self = status.Self;
+
+    container.innerHTML = `
+        <div class="info-item">
+            <div class="info-label">State</div>
+            <div class="info-value">${escapeHtml(status.BackendState || 'Unknown')}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Hostname</div>
+            <div class="info-value">${escapeHtml(self.HostName || 'N/A')}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Tailscale IP</div>
+            <div class="info-value">${escapeHtml(self.TailscaleIPs && self.TailscaleIPs[0] || 'N/A')}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">DNS Name</div>
+            <div class="info-value">${escapeHtml(self.DNSName || 'N/A')}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Online</div>
+            <div class="info-value">${self.Online ? '✓ Yes' : '✗ No'}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">OS</div>
+            <div class="info-value">${escapeHtml(self.OS || 'N/A')}</div>
+        </div>
+    `;
 }
 
 async function loadTailscalePeers() {
@@ -358,48 +381,55 @@ async function loadTailscalePeers() {
     try {
         const response = await fetch(`${API_BASE}/tailscale/peers`);
         const data = await response.json();
-
-        if (!data.success) {
-            throw new Error('Failed to load peers');
-        }
-
-        if (!data.peers || data.peers.length === 0) {
-            container.innerHTML = '<div class="empty-state">No peers found</div>';
-            return;
-        }
-
-        container.innerHTML = data.peers.map(peer => {
-            const statusClass = peer.online ? 'online' : 'offline';
-            const statusText = peer.online ? 'Online' : 'Offline';
-
-            const details = [];
-            if (peer.tailscale_ips && peer.tailscale_ips.length > 0) {
-                details.push(`IP: ${peer.tailscale_ips[0]}`);
-            }
-            if (peer.os) {
-                details.push(`OS: ${peer.os}`);
-            }
-            if (peer.dns_name) {
-                details.push(`DNS: ${peer.dns_name}`);
-            }
-            if (peer.last_seen) {
-                const lastSeen = new Date(peer.last_seen);
-                details.push(`Last seen: ${lastSeen.toLocaleString()}`);
-            }
-
-            return `
-                <div class="peer-item">
-                    <div class="peer-header">
-                        <div class="peer-name">${escapeHtml(peer.hostname || 'Unknown')}</div>
-                        <div class="peer-status ${statusClass}">${statusText}</div>
-                    </div>
-                    <div class="peer-details">${escapeHtml(details.join(' • '))}</div>
-                </div>
-            `;
-        }).join('');
+        updateTailscalePeers(data);
     } catch (error) {
+        const container = document.getElementById('tailscale-peers');
         container.innerHTML = `<div class="empty-state">Error loading peers: ${escapeHtml(error.message)}</div>`;
     }
+}
+
+function updateTailscalePeers(data) {
+    const container = document.getElementById('tailscale-peers');
+
+    if (!data.success) {
+        container.innerHTML = '<div class="empty-state">Failed to load peers</div>';
+        return;
+    }
+
+    if (!data.peers || data.peers.length === 0) {
+        container.innerHTML = '<div class="empty-state">No peers found</div>';
+        return;
+    }
+
+    container.innerHTML = data.peers.map(peer => {
+        const statusClass = peer.online ? 'online' : 'offline';
+        const statusText = peer.online ? 'Online' : 'Offline';
+
+        const details = [];
+        if (peer.tailscale_ips && peer.tailscale_ips.length > 0) {
+            details.push(`IP: ${peer.tailscale_ips[0]}`);
+        }
+        if (peer.os) {
+            details.push(`OS: ${peer.os}`);
+        }
+        if (peer.dns_name) {
+            details.push(`DNS: ${peer.dns_name}`);
+        }
+        if (peer.last_seen) {
+            const lastSeen = new Date(peer.last_seen);
+            details.push(`Last seen: ${lastSeen.toLocaleString()}`);
+        }
+
+        return `
+            <div class="peer-item">
+                <div class="peer-header">
+                    <div class="peer-name">${escapeHtml(peer.hostname || 'Unknown')}</div>
+                    <div class="peer-status ${statusClass}">${statusText}</div>
+                </div>
+                <div class="peer-details">${escapeHtml(details.join(' • '))}</div>
+            </div>
+        `;
+    }).join('');
 }
 
 async function loadTailscaleServe() {
@@ -439,6 +469,49 @@ function refreshAll() {
     }
 }
 
+function connectSSE() {
+    if (eventSource) {
+        eventSource.close();
+    }
+
+    eventSource = new EventSource('/api/events');
+
+    eventSource.addEventListener('sa-update', (e) => {
+        const data = JSON.parse(e.data);
+        updateSAsList(data);
+    });
+
+    eventSource.addEventListener('peer-update', (e) => {
+        const data = JSON.parse(e.data);
+        updateTailscalePeers(data);
+    });
+
+    eventSource.addEventListener('connection-update', (e) => {
+        const data = JSON.parse(e.data);
+        updateConnectionsList(data);
+    });
+
+    eventSource.addEventListener('node-update', (e) => {
+        const data = JSON.parse(e.data);
+        updateTailscaleStatus(data);
+    });
+
+    eventSource.onopen = () => {
+        reconnectDelay = 1000;
+        console.log('SSE connected');
+    };
+
+    eventSource.onerror = (e) => {
+        console.error('SSE error:', e);
+        eventSource.close();
+
+        setTimeout(() => {
+            connectSSE();
+            reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
+        }, reconnectDelay);
+    };
+}
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -453,10 +526,5 @@ document.getElementById('connection-name').addEventListener('keypress', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     refreshAll();
-
-    autoRefreshInterval = setInterval(() => {
-        if (currentTab === 'ipsec') {
-            loadSAs();
-        }
-    }, 10000);
+    connectSSE();
 });
