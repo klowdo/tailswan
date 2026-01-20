@@ -1,6 +1,10 @@
-# TailSwan
+<div align="center">
+  <img src="assets/swan-tailscale-gopher.jpeg" alt="TailSwan Logo" width="300"/>
 
-Bridge strongSwan/swanctl IPsec VPN and Tailscale networks in a Docker container.
+  # TailSwan
+
+  Bridge strongSwan/swanctl IPsec VPN and Tailscale networks in a Docker container.
+</div>
 
 ## Overview
 
@@ -13,11 +17,14 @@ TailSwan allows you to connect existing IPsec VPN networks to your Tailscale net
 
 ## Features
 
+- **Unified CLI Tool**: `tailswan` command for managing all services and connections
 - **Dual VPN Bridge**: Runs both strongSwan (IPsec) and Tailscale in a single container
 - **Web UI Control Panel**: Modern web interface for managing IPsec connections via Tailscale
 - **REST API**: Programmatic control of IPsec connections via HTTP API
+- **Real-time Monitoring**: Server-Sent Events (SSE) for live status updates in the web UI
 - **Automatic Subnet Advertisement**: IPsec subnets are automatically advertised to your Tailscale network
 - **Tailscale SSH Access**: SSH into the container via Tailscale to manage IPsec connections
+- **Process Supervision**: Automatic service restart and health monitoring
 - **Multiple Authentication Methods**: Supports PSK, certificates, and other IPsec auth methods
 - **Site-to-Site & Remote Access**: Configure both site-to-site and road warrior VPN scenarios
 - **Health Monitoring**: Built-in health checks for both services
@@ -27,11 +34,19 @@ TailSwan allows you to connect existing IPsec VPN networks to your Tailscale net
 
 ```
 [IPsec Client/Site] <--IPsec--> [TailSwan Container] <--Tailscale--> [Your Tailnet]
+                                 ├── tailswan (supervisor)
                                  ├── strongSwan (charon)
                                  ├── Tailscale client
                                  ├── Control Server (Web UI + API)
                                  └── SSH daemon (via Tailscale)
 ```
+
+TailSwan is built with a modern Go-based architecture:
+
+- **`tailswan` CLI**: Main supervisor that manages all services, with built-in commands for connection management
+- **Control Server**: RESTful API and web UI for remote management
+- **Process Supervisor**: Manages Tailscale and strongSwan daemons with automatic restarts
+- **Real-time Updates**: Server-Sent Events (SSE) for live status monitoring in the web UI
 
 Access the control server from any device on your Tailnet at `http://tailswan:8080/`
 
@@ -192,6 +207,39 @@ docker run -d \
 
 ## Management
 
+### TailSwan CLI
+
+The `tailswan` CLI provides a unified interface for managing the container and IPsec connections:
+
+```bash
+# Run supervisor (start all services) - default behavior
+tailswan
+
+# Check if all services are healthy
+tailswan healthcheck
+
+# Show status of Tailscale and strongSwan
+tailswan status
+
+# List all configured connections
+tailswan connections
+
+# List active security associations
+tailswan sas
+
+# Initiate a connection
+tailswan start mysite
+
+# Terminate a connection
+tailswan stop mysite
+
+# Reload strongSwan configuration
+tailswan reload
+
+# Show help
+tailswan help
+```
+
 ### SSH Access via Tailscale
 
 Once the container is running and connected to your tailnet:
@@ -202,27 +250,10 @@ ssh root@tailswan-gateway
 
 # Or using the Tailscale IP
 ssh root@100.x.y.z
-```
 
-### Helper Script
-
-Inside the container, use the `swan-status.sh` script:
-
-```bash
-# Show complete status
-/tailswan/swan-status.sh status
-
-# List connections
-/tailswan/swan-status.sh connections
-
-# Start a connection
-/tailswan/swan-status.sh start mysite
-
-# Stop a connection
-/tailswan/swan-status.sh stop mysite
-
-# Reload configuration
-/tailswan/swan-status.sh reload
+# Then use the tailswan CLI
+tailswan status
+tailswan connections
 ```
 
 ## Managing Connections
@@ -296,6 +327,50 @@ cd tailswan
 docker build -t tailswan:latest .
 ```
 
+### Project Structure
+
+TailSwan follows a standard Go project layout:
+
+```
+tailswan/
+├── cmd/
+│   ├── tailswan/           # Main supervisor CLI
+│   │   ├── main.go         # Entry point and command routing
+│   │   ├── commands.go     # CLI command implementations
+│   │   └── supervisor.go   # Supervisor startup logic
+│   └── controlserver/      # Web UI and REST API server
+│       ├── main.go         # HTTP server entry point
+│       └── web/            # Static assets (HTML, JS, CSS)
+├── internal/
+│   ├── supervisor/         # Process supervision and management
+│   │   ├── supervisor.go   # Main supervisor logic
+│   │   ├── tailscale.go    # Tailscale daemon management
+│   │   ├── swan.go         # strongSwan daemon management
+│   │   ├── process.go      # Generic process manager
+│   │   ├── health.go       # Health check implementations
+│   │   └── sysconfig.go    # System configuration (routing, forwarding)
+│   ├── handlers/           # HTTP request handlers
+│   │   ├── vici.go         # strongSwan VICI protocol handlers
+│   │   ├── tailscale.go    # Tailscale status handlers
+│   │   ├── sse.go          # Server-Sent Events handlers
+│   │   └── health.go       # Health check endpoints
+│   ├── server/             # HTTP server setup
+│   ├── routes/             # API route definitions
+│   ├── models/             # Data models and structures
+│   ├── sse/                # SSE broadcaster for real-time updates
+│   └── config/             # Configuration management
+├── scripts/                # Helper shell scripts
+├── config/                 # Example configurations
+└── Dockerfile              # Multi-stage build container
+```
+
+Key Components:
+
+- **Supervisor**: Manages Tailscale and strongSwan as child processes with automatic restarts
+- **VICI Integration**: Uses strongSwan's VICI protocol for programmatic control
+- **SSE Broadcasting**: Real-time status updates pushed to web UI clients
+- **Health Checks**: Docker-compatible health monitoring for all services
+
 ## Troubleshooting
 
 ### Container fails to start
@@ -312,8 +387,9 @@ docker logs tailswan
 
 # SSH into container and check status
 ssh root@tailswan-gateway
-swanctl --list-sas
-journalctl -u strongswan -f  # if available
+tailswan status
+tailswan connections
+tailswan sas
 ```
 
 ### Routes not appearing in Tailscale
