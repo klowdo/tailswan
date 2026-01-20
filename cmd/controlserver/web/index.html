@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TailSwan Control Panel</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🦢 TailSwan Control Panel</h1>
+            <p class="subtitle">Manage IPsec Connections via strongSwan/swanctl</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">Server Status:</span>
+                <span id="server-status" class="status-value">Checking...</span>
+            </div>
+            <button onclick="refreshAll()" class="btn btn-refresh">↻ Refresh</button>
+        </div>
+
+        <main>
+            <section class="card">
+                <h2>Configured Connections</h2>
+                <div id="connections-list" class="list-container">
+                    <div class="loading">Loading connections...</div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Active Security Associations</h2>
+                <div id="sas-list" class="list-container">
+                    <div class="loading">Loading security associations...</div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Manual Connection Control</h2>
+                <div class="form-group">
+                    <label for="connection-name">Connection Name:</label>
+                    <input
+                        type="text"
+                        id="connection-name"
+                        placeholder="Enter connection name"
+                        autocomplete="off"
+                    >
+                </div>
+                <div class="button-group">
+                    <button onclick="bringConnectionUp()" class="btn btn-success">▲ Bring Up</button>
+                    <button onclick="bringConnectionDown()" class="btn btn-danger">▼ Bring Down</button>
+                </div>
+            </section>
+        </main>
+
+        <div id="notification" class="notification"></div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

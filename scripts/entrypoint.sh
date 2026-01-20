@@ -56,6 +56,12 @@ if [ "$SWAN_AUTO_START" = "true" ] && [ -n "$SWAN_CONNECTIONS" ]; then
     done
 fi
 
+# Start TailSwan control server
+CONTROL_PORT=${CONTROL_PORT:-8080}
+echo "Starting TailSwan control server on port $CONTROL_PORT..."
+controlserver &
+CONTROL_PID=$!
+
 # Start Tailscale daemon
 echo "Starting Tailscaled..."
 tailscaled --state=${TS_STATE_DIR}/tailscaled.state --socket=${TS_SOCKET} --tun=userspace-networking &
@@ -133,6 +139,12 @@ echo "Bringing up Tailscale..."
 echo "Command: tailscale up ${TS_UP_ARGS}"
 tailscale up ${TS_UP_ARGS}
 
+# Enable Tailscale Serve for control server
+echo "Enabling Tailscale Serve for control server..."
+tailscale serve --bg ${CONTROL_PORT}
+echo "✓ Control server available via Tailscale Serve (HTTP and HTTPS)"
+tailscale serve status
+
 echo ""
 echo "============================================"
 echo "TailSwan is running!"
@@ -143,28 +155,44 @@ echo ""
 echo "strongSwan status:"
 swanctl --list-conns
 echo ""
-echo "To initiate an IPsec connection, SSH into this container via Tailscale and run:"
-echo "  swanctl --initiate --child <connection-name>"
+echo "Control Server:"
+echo "  Tailscale:  https://$(tailscale status --json 2>/dev/null | grep -o '\"HostName\":\"[^\"]*\"' | cut -d'"' -f4 || echo 'tailswan').$(tailscale status --json 2>/dev/null | grep -o '\"MagicDNSSuffix\":\"[^\"]*\"' | cut -d'"' -f4 || echo 'ts.net')/"
+echo "  Local:      http://localhost:${CONTROL_PORT}/"
+echo "  API:        http://localhost:${CONTROL_PORT}/health"
+echo ""
+echo "API Endpoints:"
+echo "  POST /connections/up      - Bring connection up"
+echo "  POST /connections/down    - Bring connection down"
+echo "  GET  /connections/list    - List all connections"
+echo "  GET  /sas/list           - List security associations"
+echo ""
+echo "To manage IPsec connections:"
+echo "  Via Web UI: Open http://localhost:${CONTROL_PORT}/ in your browser"
+echo "  Via API:    curl -X POST http://localhost:${CONTROL_PORT}/connections/up -d '{\"name\":\"<connection-name>\"}'"
+echo "  Via CLI:    swanctl --initiate --child <connection-name>"
 echo "============================================"
 
-# Monitor both processes
-trap 'echo "Received shutdown signal, cleaning up..."; kill $TAILSCALED_PID $IPSEC_PID 2>/dev/null; exit 0' SIGTERM SIGINT
+# Monitor all processes
+trap 'echo "Received shutdown signal, cleaning up..."; kill $TAILSCALED_PID $IPSEC_PID $CONTROL_PID 2>/dev/null; exit 0' SIGTERM SIGINT
 
 echo ""
 echo "✓ TailSwan is now running and monitoring services..."
 echo "  Tailscaled PID: $TAILSCALED_PID"
 echo "  IPsec (charon) PID: $IPSEC_PID"
+echo "  Control server PID: $CONTROL_PID"
 echo ""
 
-# Wait for either process to exit
-wait -n $TAILSCALED_PID $IPSEC_PID
+# Wait for any process to exit
+wait -n $TAILSCALED_PID $IPSEC_PID $CONTROL_PID
 EXIT_CODE=$?
 
 # Figure out which process died
 TAILSCALED_RUNNING=false
 IPSEC_RUNNING=false
+CONTROL_RUNNING=false
 kill -0 $TAILSCALED_PID 2>/dev/null && TAILSCALED_RUNNING=true
 kill -0 $IPSEC_PID 2>/dev/null && IPSEC_RUNNING=true
+kill -0 $CONTROL_PID 2>/dev/null && CONTROL_RUNNING=true
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════╗"
@@ -184,9 +212,15 @@ if [ "$IPSEC_RUNNING" = "false" ]; then
     echo "  This usually means strongSwan crashed or was terminated."
 fi
 
+if [ "$CONTROL_RUNNING" = "false" ]; then
+    echo "✗ CONTROL SERVER PROCESS EXITED (PID: $CONTROL_PID)"
+    echo "  Exit code: $EXIT_CODE"
+    echo "  This usually means the control server crashed or was terminated."
+fi
+
 echo ""
 echo "Cleaning up remaining processes..."
-kill $TAILSCALED_PID $IPSEC_PID 2>/dev/null
+kill $TAILSCALED_PID $IPSEC_PID $CONTROL_PID 2>/dev/null
 
 echo "Container will now exit and Docker will restart it..."
 echo "════════════════════════════════════════════════════════════"

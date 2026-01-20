@@ -14,6 +14,8 @@ TailSwan allows you to connect existing IPsec VPN networks to your Tailscale net
 ## Features
 
 - **Dual VPN Bridge**: Runs both strongSwan (IPsec) and Tailscale in a single container
+- **Web UI Control Panel**: Modern web interface for managing IPsec connections via Tailscale
+- **REST API**: Programmatic control of IPsec connections via HTTP API
 - **Automatic Subnet Advertisement**: IPsec subnets are automatically advertised to your Tailscale network
 - **Tailscale SSH Access**: SSH into the container via Tailscale to manage IPsec connections
 - **Multiple Authentication Methods**: Supports PSK, certificates, and other IPsec auth methods
@@ -27,8 +29,11 @@ TailSwan allows you to connect existing IPsec VPN networks to your Tailscale net
 [IPsec Client/Site] <--IPsec--> [TailSwan Container] <--Tailscale--> [Your Tailnet]
                                  ├── strongSwan (charon)
                                  ├── Tailscale client
+                                 ├── Control Server (Web UI + API)
                                  └── SSH daemon (via Tailscale)
 ```
+
+Access the control server from any device on your Tailnet at `http://tailswan:8080/`
 
 ## Quick Start
 
@@ -141,6 +146,7 @@ swanctl --initiate --child net-net
 | `SWAN_CONFIG` | `/etc/swanctl/swanctl.conf` | Path to swanctl configuration file |
 | `SWAN_AUTO_START` | `false` | Auto-start IPsec connections on container start |
 | `SWAN_CONNECTIONS` | - | Comma-separated list of connections to auto-start (requires `SWAN_AUTO_START=true`) |
+| `CONTROL_PORT` | `8080` | Port for the web UI and REST API control server |
 
 ## Configuration Examples
 
@@ -218,6 +224,50 @@ Inside the container, use the `swan-status.sh` script:
 # Reload configuration
 /tailswan/swan-status.sh reload
 ```
+
+## Managing Connections
+
+### Web UI
+
+Access the web-based control panel from any device on your Tailnet:
+
+```
+http://tailswan:8080/
+```
+
+The web UI provides:
+- Real-time server status monitoring
+- List of configured connections with quick action buttons
+- Active security associations viewer
+- Manual connection control (bring up/down)
+- Auto-refreshing status (every 10 seconds)
+
+### REST API
+
+Control connections programmatically:
+
+```bash
+# Bring a connection up
+curl -X POST http://tailswan:8080/connections/up \
+  -H "Content-Type: application/json" \
+  -d '{"name":"net-net"}'
+
+# Bring a connection down
+curl -X POST http://tailswan:8080/connections/down \
+  -H "Content-Type: application/json" \
+  -d '{"name":"net-net"}'
+
+# List all configured connections
+curl http://tailswan:8080/connections/list
+
+# List active security associations
+curl http://tailswan:8080/sas/list
+
+# Health check
+curl http://tailswan:8080/health
+```
+
+See `cmd/controlserver/README.md` for full API documentation.
 
 ### Manual swanctl Commands
 

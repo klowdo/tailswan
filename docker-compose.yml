@@ -12,6 +12,8 @@ services:
 
     # Run in privileged mode for full kernel access (required for VPN functionality)
     privileged: true
+    ports:
+      - 8080:8080
 
     # Required capabilities for VPN functionality
     cap_add:

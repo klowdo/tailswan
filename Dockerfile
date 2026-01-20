@@ -19,6 +19,19 @@ RUN git clone  --single-branch  --branch=${TAILSCALE_VERSION} https://github.com
     CGO_ENABLED=0 go build -o /tailscale ./cmd/tailscale && \
     CGO_ENABLED=0 go build -o /tailscaled ./cmd/tailscaled
 
+# Build stage for TailSwan control server
+FROM golang:1.25.6-alpine3.22 AS controlserver-builder
+
+WORKDIR /build
+
+COPY go.mod go.sum* ./
+RUN go mod download
+
+COPY cmd/controlserver/ ./cmd/controlserver/
+COPY internal/ ./internal/
+
+RUN CGO_ENABLED=0 go build -o /controlserver ./cmd/controlserver
+
 # Runtime stage
 FROM alpine:3.19
 
@@ -41,6 +54,9 @@ RUN apk add --no-cache \
 # Copy Tailscale binaries from builder
 COPY --from=tailscale-builder /tailscale /usr/local/bin/tailscale
 COPY --from=tailscale-builder /tailscaled /usr/local/bin/tailscaled
+
+# Copy TailSwan control server from builder
+COPY --from=controlserver-builder /controlserver /usr/local/bin/controlserver
 
 # Create necessary directories
 RUN mkdir -p /var/run/tailscale \
