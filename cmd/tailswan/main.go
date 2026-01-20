@@ -51,6 +51,7 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("ENVIRONMENT VARIABLES:")
 	fmt.Println("  CONTROL_PORT               Control server port (default: 8080)")
+	fmt.Println("  USE_TSNET                  Use tsnet instead of Tailscale Serve (true/false)")
 	fmt.Println("  TS_STATE_DIR               Tailscale state directory")
 	fmt.Println("  TS_SOCKET                  Tailscale socket path")
 	fmt.Println("  TS_HOSTNAME                Tailscale hostname")

@@ -11,6 +11,7 @@ type Config struct {
 	ControlPort       string
 	TailscaleStateDir string
 	TailscaleSocket   string
+	UseTsnet          bool
 	TailscaleConfig   TailscaleConfig
 	SwanConfigPath    string
 	SwanAutoStart     bool
@@ -36,7 +37,7 @@ func New(cfg Config) *Supervisor {
 		ipsec:       &Process{},
 		tailscaled:  &Process{},
 		server:      &Process{},
-		tsService:   &TailscaleService{},
+		tsService:   NewTailscaleService(),
 		swanService: &SwanService{},
 		errors:      make(chan error, 1),
 	}
@@ -66,32 +67,37 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		return fmt.Errorf("controlserver start: %w", err)
 	}
 
-	log.Println("Starting tailscaled...")
-	if err := s.tailscaled.Start(
-		"tailscaled",
-		"--state", fmt.Sprintf("%s/tailscaled.state", s.config.TailscaleStateDir),
-		"--socket", s.config.TailscaleSocket,
-		"--tun", "userspace-networking",
-	); err != nil {
-		return fmt.Errorf("tailscaled start: %w", err)
-	}
+	if s.config.UseTsnet {
+		log.Println("Using tsnet for Tailscale integration (embedded)")
+		log.Println("Control server will handle Tailscale connectivity via tsnet")
+	} else {
+		log.Println("Starting tailscaled...")
+		if err := s.tailscaled.Start(
+			"tailscaled",
+			"--state", fmt.Sprintf("%s/tailscaled.state", s.config.TailscaleStateDir),
+			"--socket", s.config.TailscaleSocket,
+			"--tun", "userspace-networking",
+		); err != nil {
+			return fmt.Errorf("tailscaled start: %w", err)
+		}
 
-	log.Println("Waiting for tailscaled to be ready...")
-	readyCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
+		log.Println("Waiting for tailscaled to be ready...")
+		readyCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		defer cancel()
 
-	if err := s.tsService.WaitReady(readyCtx); err != nil {
-		return fmt.Errorf("tailscaled not ready: %w", err)
-	}
+		if err := s.tsService.WaitReady(readyCtx); err != nil {
+			return fmt.Errorf("tailscaled not ready: %w", err)
+		}
 
-	log.Println("Bringing up Tailscale...")
-	if err := s.tsService.Up(s.config.TailscaleConfig); err != nil {
-		return fmt.Errorf("tailscale up: %w", err)
-	}
+		log.Println("Bringing up Tailscale...")
+		if err := s.tsService.Up(s.config.TailscaleConfig); err != nil {
+			return fmt.Errorf("tailscale up: %w", err)
+		}
 
-	log.Println("Enabling Tailscale Serve...")
-	if err := s.tsService.EnableServe(s.config.ControlPort); err != nil {
-		return fmt.Errorf("tailscale serve: %w", err)
+		log.Println("Enabling Tailscale Serve...")
+		if err := s.tsService.EnableServe(s.config.ControlPort); err != nil {
+			return fmt.Errorf("tailscale serve: %w", err)
+		}
 	}
 
 	s.printStatus()
@@ -132,10 +138,12 @@ func (s *Supervisor) monitor(ctx context.Context) {
 		errChan <- fmt.Errorf("ipsec exited: %w", err)
 	}()
 
-	go func() {
-		err := s.tailscaled.Wait()
-		errChan <- fmt.Errorf("tailscaled exited: %w", err)
-	}()
+	if !s.config.UseTsnet {
+		go func() {
+			err := s.tailscaled.Wait()
+			errChan <- fmt.Errorf("tailscaled exited: %w", err)
+		}()
+	}
 
 	go func() {
 		err := s.server.Wait()

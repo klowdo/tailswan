@@ -48,6 +48,7 @@ func loadConfig() supervisor.Config {
 		ControlPort:       cfg.Port,
 		TailscaleStateDir: cfg.Tailscale.StateDir,
 		TailscaleSocket:   cfg.Tailscale.Socket,
+		UseTsnet:          cfg.Tailscale.UseTsnet,
 		TailscaleConfig: supervisor.TailscaleConfig{
 			StateDir:  cfg.Tailscale.StateDir,
 			Socket:    cfg.Tailscale.Socket,

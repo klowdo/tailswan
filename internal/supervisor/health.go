@@ -1,17 +1,23 @@
 package supervisor
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
+
+	"tailscale.com/client/tailscale"
 )
 
 func HealthCheck() error {
-	cmd := exec.Command("tailscale", "status")
-	if err := cmd.Run(); err != nil {
+	client := &tailscale.LocalClient{}
+	ctx := context.Background()
+
+	_, err := client.Status(ctx)
+	if err != nil {
 		return fmt.Errorf("tailscaled not responding: %w", err)
 	}
 
-	cmd = exec.Command("swanctl", "--version")
+	cmd := exec.Command("swanctl", "--version")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("swanctl not responding: %w", err)
 	}

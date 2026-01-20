@@ -8,9 +8,20 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"tailscale.com/client/tailscale"
+	"tailscale.com/ipn"
 )
 
-type TailscaleService struct{}
+type TailscaleService struct {
+	client *tailscale.LocalClient
+}
+
+func NewTailscaleService() *TailscaleService {
+	return &TailscaleService{
+		client: &tailscale.LocalClient{},
+	}
+}
 
 type TailscaleConfig struct {
 	StateDir  string
@@ -34,10 +45,8 @@ func (ts *TailscaleService) WaitReady(ctx context.Context) error {
 		case <-ticker.C:
 			attempts++
 
-			cmd := exec.Command("tailscale", "status")
-			output, err := cmd.CombinedOutput()
-
-			if err == nil || strings.Contains(string(output), "Logged out") {
+			_, err := ts.client.Status(ctx)
+			if err == nil {
 				log.Println("✓ Tailscaled is ready")
 				return nil
 			}
@@ -79,22 +88,37 @@ func (ts *TailscaleService) Up(cfg TailscaleConfig) error {
 }
 
 func (ts *TailscaleService) EnableServe(port string) error {
-	cmd := exec.Command("tailscale", "serve", "--bg", port)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("enable https serve: %w", err)
+	ctx := context.Background()
+
+	config := &ipn.ServeConfig{
+		TCP: map[uint16]*ipn.TCPPortHandler{
+			443: {HTTPS: true},
+			80:  {HTTP: true},
+		},
+		Web: map[ipn.HostPort]*ipn.WebServerConfig{
+			"${TS_CERT_DOMAIN}:443": {
+				Handlers: map[string]*ipn.HTTPHandler{
+					"/": {Proxy: "http://127.0.0.1:" + port},
+				},
+			},
+			"${TS_CERT_DOMAIN}:80": {
+				Handlers: map[string]*ipn.HTTPHandler{
+					"/": {Proxy: "http://127.0.0.1:" + port},
+				},
+			},
+		},
 	}
 
-	cmd = exec.Command("tailscale", "serve", "--bg", "--http", "80",
-		"http://127.0.0.1:"+port)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("enable http serve: %w", err)
+	if err := ts.client.SetServeConfig(ctx, config); err != nil {
+		return fmt.Errorf("failed to set serve config: %w", err)
 	}
 
 	log.Println("✓ Control server available via Tailscale Serve (HTTP and HTTPS)")
 
-	cmd = exec.Command("tailscale", "serve", "status")
-	cmd.Stdout = os.Stdout
-	cmd.Run()
+	serveStatus, err := ts.client.GetServeConfig(ctx)
+	if err == nil && serveStatus != nil {
+		log.Printf("Serve config: %+v", serveStatus)
+	}
 
 	return nil
 }

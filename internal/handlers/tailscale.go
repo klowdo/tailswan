@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"sort"
 
 	"github.com/klowdo/tailswan/internal/models"
 	"tailscale.com/client/tailscale"
@@ -18,8 +19,18 @@ func NewTailscaleHandler() *TailscaleHandler {
 	}
 }
 
+func NewTailscaleHandlerWithClient(client *tailscale.LocalClient) *TailscaleHandler {
+	return &TailscaleHandler{
+		client: client,
+	}
+}
+
 func (h *TailscaleHandler) LocalClient() *tailscale.LocalClient {
 	return h.client
+}
+
+func (h *TailscaleHandler) SetClient(client *tailscale.LocalClient) {
+	h.client = client
 }
 
 func (h *TailscaleHandler) Status(w http.ResponseWriter, r *http.Request) {
@@ -81,6 +92,12 @@ func (h *TailscaleHandler) Peers(w http.ResponseWriter, r *http.Request) {
 		}
 		peers = append(peers, peerInfo)
 	}
+
+	sort.Slice(peers, func(i, j int) bool {
+		hostnameI, _ := peers[i]["hostname"].(string)
+		hostnameJ, _ := peers[j]["hostname"].(string)
+		return hostnameI < hostnameJ
+	})
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,

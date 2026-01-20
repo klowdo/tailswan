@@ -20,7 +20,17 @@ func main() {
 	}
 	defer srv.Close()
 
-	if err := srv.Start(); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	if cfg.Tailscale.UseTsnet {
+		if err := srv.StartWithTsnet(
+			cfg.Tailscale.Hostname,
+			cfg.Tailscale.AuthKey,
+			cfg.Tailscale.Routes,
+		); err != nil {
+			log.Fatalf("Server failed: %v", err)
+		}
+	} else {
+		if err := srv.Start(); err != nil {
+			log.Fatalf("Server failed: %v", err)
+		}
 	}
 }

@@ -45,6 +45,7 @@ services:
       - TS_SSH=${TS_SSH:-true}
       - TS_EXTRA_ARGS=${TS_EXTRA_ARGS:-}
       - TS_STATE_DIR=${TS_STATE_DIR:-/var/lib/tailscale}
+      - USE_TSNET=true
 
       # strongSwan configuration
       - SWAN_AUTO_START=${SWAN_AUTO_START:-false}

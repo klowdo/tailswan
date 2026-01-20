@@ -2,7 +2,7 @@ const API_BASE = '/api';
 
 function tailswanApp() {
     return {
-        currentTab: 'ipsec',
+        currentTab: localStorage.getItem('tailswan_current_tab') || 'ipsec',
         serverOnline: false,
         tailscaleRunning: false,
 
@@ -37,6 +37,7 @@ function tailswanApp() {
 
         switchTab(tab) {
             this.currentTab = tab;
+            localStorage.setItem('tailswan_current_tab', tab);
         },
 
         async checkServerStatus() {

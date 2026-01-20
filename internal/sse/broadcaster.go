@@ -33,6 +33,10 @@ func NewEventBroadcaster(viciSession *vici.Session, tsClient *tailscale.LocalCli
 	}
 }
 
+func (eb *EventBroadcaster) SetTailscaleClient(client *tailscale.LocalClient) {
+	eb.tailscaleClient = client
+}
+
 func (eb *EventBroadcaster) Start(ctx context.Context) {
 	eb.ctx, eb.cancel = context.WithCancel(ctx)
 
