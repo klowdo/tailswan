@@ -1,7 +1,7 @@
 services:
   tailswan:
     # Use image from private Docker registry
-    image: docker-registry.home.flixen.se/tailswan:latest
+    image: docker-registry.home.flixen.se/tailswan:v2
 
     # Or build locally by commenting out 'image:' and uncommenting 'build:'
     build: .
@@ -68,7 +68,7 @@ services:
 
     # Health check
     healthcheck:
-      test: ["CMD", "/tailswan/healthcheck.sh"]
+      test: ["CMD", "tailswan", "healthcheck"]
       interval: 60s
       timeout: 5s
       retries: 3

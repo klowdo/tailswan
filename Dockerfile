@@ -19,6 +19,19 @@ RUN git clone  --single-branch  --branch=${TAILSCALE_VERSION} https://github.com
     CGO_ENABLED=0 go build -o /tailscale ./cmd/tailscale && \
     CGO_ENABLED=0 go build -o /tailscaled ./cmd/tailscaled
 
+# Build stage for TailSwan supervisor
+FROM golang:1.25.6-alpine3.22 AS supervisor-builder
+
+WORKDIR /build
+
+COPY go.mod go.sum* ./
+RUN go mod download
+
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+
+RUN CGO_ENABLED=0 go build -o /tailswan ./cmd/tailswan
+
 # Build stage for TailSwan control server
 FROM golang:1.25.6-alpine3.22 AS controlserver-builder
 
@@ -46,7 +59,6 @@ RUN apk add --no-cache \
     ip6tables \
     iproute2 \
     curl \
-    bash \
     ca-certificates \
     openssl \
     && rm -rf /var/cache/apk/*
@@ -55,7 +67,8 @@ RUN apk add --no-cache \
 COPY --from=tailscale-builder /tailscale /usr/local/bin/tailscale
 COPY --from=tailscale-builder /tailscaled /usr/local/bin/tailscaled
 
-# Copy TailSwan control server from builder
+# Copy TailSwan binaries from builders
+COPY --from=supervisor-builder /tailswan /usr/local/bin/tailswan
 COPY --from=controlserver-builder /controlserver /usr/local/bin/controlserver
 
 # Create necessary directories
@@ -69,24 +82,10 @@ RUN mkdir -p /var/run/tailscale \
     /etc/swanctl/private \
     /etc/swanctl/rsa \
     /etc/swanctl/ecdsa \
-    /etc/swanctl/pkcs12 \
-    /tailswan
-
-# Copy scripts
-COPY scripts/ /tailswan/
-
-# Make scripts executable
-RUN chmod +x /tailswan/*.sh
-
-# Copy vpn management script to root
-RUN cp /tailswan/vpn.sh /vpn && chmod +x /vpn
-
-# Enable IP forwarding (will be set in entrypoint for persistence)
-RUN echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf && \
-    echo "net.ipv6.conf.all.forwarding=1" >> /etc/sysctl.conf
+    /etc/swanctl/pkcs12
 
 # Health check
 HEALTHCHECK --interval=60s --timeout=5s --start-period=10s --retries=3 \
-    CMD /tailswan/healthcheck.sh
+    CMD tailswan healthcheck
 
-ENTRYPOINT ["/tailswan/entrypoint.sh"]
+ENTRYPOINT ["tailswan"]

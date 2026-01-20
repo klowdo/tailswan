@@ -18,6 +18,9 @@
         buildInputs = with pkgs; [
           gnumake
           go
+          nodejs
+          playwright
+          playwright-mcp
         ];
       };
     });
