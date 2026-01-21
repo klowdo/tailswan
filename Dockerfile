@@ -82,7 +82,7 @@ RUN mkdir -p /etc/bash_completion.d \
     tailswan completion fish > /usr/share/fish/vendor_completions.d/tailswan.fish
 
 # Copy and install welcome banner
-COPY banner.txt /etc/motd
+COPY assets/banner.txt /etc/motd
 
 # Create necessary directories
 RUN mkdir -p /var/run/tailscale \
