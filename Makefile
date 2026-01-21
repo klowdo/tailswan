@@ -5,6 +5,11 @@ CONTAINER_NAME := tailswan
 REGISTRY := docker-registry.home.flixen.se
 TAG := latest
 
+# Docker build arguments (can be overridden)
+GO_VERSION ?= $(shell grep '^go ' go.mod | awk '{print $$2}')
+ALPINE_VERSION ?= $(shell grep '^ARG ALPINE_VERSION=' Dockerfile | cut -d'=' -f2)
+TAILSCALE_VERSION ?= $(shell grep '^ARG TAILSCALE_VERSION=' Dockerfile | cut -d'=' -f2)
+
 help:
 	@echo "TailSwan Makefile Commands"
 	@echo ""
@@ -20,6 +25,13 @@ help:
 	@echo "  make status      - Show TailSwan status"
 	@echo "  make rebuild     - Rebuild and restart the container"
 	@echo ""
+	@echo "Build Arguments (can be overridden):"
+	@echo "  GO_VERSION       - Go version (default: from go.mod)"
+	@echo "  ALPINE_VERSION   - Alpine version (default: from Dockerfile)"
+	@echo "  TAILSCALE_VERSION - Tailscale version (default: from Dockerfile)"
+	@echo ""
+	@echo "Example: make build GO_VERSION=1.25.5 TAILSCALE_VERSION=v1.92.0"
+	@echo ""
 	@echo "Go Development Commands:"
 	@echo "  make go-build    - Build the Go binary"
 	@echo "  make test        - Run Go tests"
@@ -32,7 +44,14 @@ help:
 
 build:
 	@echo "Building TailSwan Docker image..."
-	docker build -t $(IMAGE_NAME):latest .
+	@echo "  Go version: $(GO_VERSION)"
+	@echo "  Alpine version: $(ALPINE_VERSION)"
+	@echo "  Tailscale version: $(TAILSCALE_VERSION)"
+	docker build \
+		--build-arg GO_VERSION=$(GO_VERSION) \
+		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
+		--build-arg TAILSCALE_VERSION=$(TAILSCALE_VERSION) \
+		-t $(IMAGE_NAME):latest .
 
 run:
 	@echo "Starting TailSwan..."

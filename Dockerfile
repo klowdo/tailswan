@@ -1,11 +1,22 @@
 # Multi-stage Dockerfile for TailSwan
 # Bridges strongSwan/swanctl (IPsec) and Tailscale networks
+#
+# Build arguments:
+#   GO_VERSION        - Go version for build stages (default: 1.25.6)
+#   ALPINE_VERSION    - Alpine Linux version (default: 3.22)
+#   TAILSCALE_VERSION - Tailscale version to build (default: v1.92.5)
+#
+# Example:
+#   docker build --build-arg GO_VERSION=1.25.5 --build-arg TAILSCALE_VERSION=v1.92.0 .
 
-# Build stage for Tailscale
-FROM golang:1.25.6-alpine3.22 AS tailscale-builder
-
+ARG GO_VERSION=1.25.6
+ARG ALPINE_VERSION=3.22
 ARG TAILSCALE_VERSION=v1.92.5
 
+# Build stage for Tailscale
+FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS tailscale-builder
+
+ARG TAILSCALE_VERSION
 
 RUN apk add --no-cache git
 
@@ -20,7 +31,7 @@ RUN git clone  --single-branch  --branch=${TAILSCALE_VERSION} https://github.com
     CGO_ENABLED=0 go build -o /tailscaled ./cmd/tailscaled
 
 # Base builder stage with dependencies
-FROM golang:1.25.6-alpine3.22 AS base-builder
+FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS base-builder
 
 WORKDIR /build
 
@@ -40,7 +51,8 @@ FROM base-builder AS controlserver-builder
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /controlserver ./cmd/controlserver
 
 # Runtime stage
-FROM alpine:3.22
+ARG ALPINE_VERSION
+FROM alpine:${ALPINE_VERSION}
 
 LABEL org.opencontainers.image.title="TailSwan"
 LABEL org.opencontainers.image.description="Bridge strongSwan/swanctl IPsec VPN and Tailscale networks"
