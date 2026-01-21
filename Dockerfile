@@ -71,6 +71,14 @@ COPY --from=tailscale-builder /tailscaled /usr/local/bin/tailscaled
 COPY --from=supervisor-builder /tailswan /usr/local/bin/tailswan
 COPY --from=controlserver-builder /controlserver /usr/local/bin/controlserver
 
+# Install shell completions
+RUN mkdir -p /etc/bash_completion.d \
+    /usr/share/zsh/site-functions \
+    /usr/share/fish/vendor_completions.d && \
+    tailswan completion bash > /etc/bash_completion.d/tailswan && \
+    tailswan completion zsh > /usr/share/zsh/site-functions/_tailswan && \
+    tailswan completion fish > /usr/share/fish/vendor_completions.d/tailswan.fish
+
 # Create necessary directories
 RUN mkdir -p /var/run/tailscale \
     /var/lib/tailscale \
@@ -89,3 +97,4 @@ HEALTHCHECK --interval=60s --timeout=5s --start-period=10s --retries=3 \
     CMD tailswan healthcheck
 
 ENTRYPOINT ["tailswan"]
+CMD ["serve"]

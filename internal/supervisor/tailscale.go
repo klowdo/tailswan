@@ -59,7 +59,12 @@ func (ts *TailscaleService) WaitReady(ctx context.Context) error {
 }
 
 func (ts *TailscaleService) Up(cfg TailscaleConfig) error {
-	args := []string{"up", "--hostname=" + cfg.Hostname}
+	args := []string{"up"}
+
+	args = append(args, "--hostname="+cfg.Hostname)
+	args = append(args, "--accept-routes")
+	args = append(args, "--accept-dns=false")
+	args = append(args, "--advertise-exit-node=false")
 
 	if cfg.AuthKey != "" {
 		args = append(args, "--authkey="+cfg.AuthKey)
@@ -68,23 +73,31 @@ func (ts *TailscaleService) Up(cfg TailscaleConfig) error {
 	if len(cfg.Routes) > 0 {
 		routes := strings.Join(cfg.Routes, ",")
 		args = append(args, "--advertise-routes="+routes)
-		slog.Info("Advertising routes: %s", routes)
+		slog.Info("Advertising routes", "routes", routes)
+	} else {
+		args = append(args, "--advertise-routes=")
 	}
 
 	if cfg.SSH {
 		args = append(args, "--ssh")
 		slog.Info("Enabling Tailscale SSH")
+	} else {
+		args = append(args, "--ssh=false")
 	}
 
 	args = append(args, cfg.ExtraArgs...)
 
-	slog.Info("Bringing up Tailscale: tailscale %s", strings.Join(args, " "))
+	slog.Info("Bringing up Tailscale", "command", "tailscale "+strings.Join(args, " "))
 
 	cmd := exec.Command("tailscale", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("tailscale up failed: %w", err)
+	}
+
+	return nil
 }
 
 func (ts *TailscaleService) EnableServe(port string) error {

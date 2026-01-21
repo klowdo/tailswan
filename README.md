@@ -152,16 +152,22 @@ swanctl --initiate --child net-net
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TS_AUTHKEY` | - | Tailscale auth key (get from https://login.tailscale.com/admin/settings/keys) |
-| `TS_HOSTNAME` | `tailswan` | Hostname for the Tailscale node |
-| `TS_ROUTES` | - | Comma-separated list of subnets to advertise (e.g., `10.1.0.0/24,10.2.0.0/24`) |
-| `TS_SSH` | `true` | Enable Tailscale SSH server |
-| `TS_EXTRA_ARGS` | - | Additional arguments for `tailscale up` |
-| `TS_STATE_DIR` | `/var/lib/tailscale` | Tailscale state directory |
-| `SWAN_CONFIG` | `/etc/swanctl/swanctl.conf` | Path to swanctl configuration file |
-| `SWAN_AUTO_START` | `false` | Auto-start IPsec connections on container start |
-| `SWAN_CONNECTIONS` | - | Comma-separated list of connections to auto-start (requires `SWAN_AUTO_START=true`) |
+| **General Configuration** | | |
 | `CONTROL_PORT` | `8080` | Port for the web UI and REST API control server |
+| `LOG_LEVEL` | `info` | Logging level (debug, info, warn, error) |
+| `USE_TSNET` | `false` | Use embedded tsnet instead of standalone tailscaled. When true, runs Tailscale client embedded in the control server process |
+| **Tailscale Configuration** | | |
+| `TS_AUTHKEY` | (required) | Tailscale authentication key. Get from https://login.tailscale.com/admin/settings/keys |
+| `TS_HOSTNAME` | `tailswan` | Hostname for the Tailscale node in your tailnet |
+| `TS_ROUTES` | (empty) | Comma-separated list of subnets to advertise to your tailnet (e.g., `10.1.0.0/24,10.2.0.0/24`) |
+| `TS_SSH` | `true` | Enable Tailscale SSH server for remote access via tailnet |
+| `TS_EXTRA_ARGS` | (empty) | Additional arguments to pass to `tailscale up` command |
+| `TS_STATE_DIR` | `/var/lib/tailscale` | Directory for storing Tailscale state and configuration |
+| `TS_SOCKET` | `/var/run/tailscale/tailscaled.sock` | Path to tailscaled control socket (only used when `USE_TSNET=false`) |
+| **strongSwan Configuration** | | |
+| `SWAN_CONFIG` | `/etc/swanctl/swanctl.conf` | Path to swanctl configuration file |
+| `SWAN_AUTO_START` | `false` | Automatically initiate IPsec connections on container start |
+| `SWAN_CONNECTIONS` | (empty) | Comma-separated list of connection names to auto-start (requires `SWAN_AUTO_START=true`) |
 
 ## Configuration Examples
 

@@ -134,7 +134,7 @@ func (s *Server) StartWithTsnet(hostname, authKey string, routes []string) error
 
 	slog.Info("Waiting for tsnet to be ready...")
 	dnsName := ""
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		st, e := localClient.StatusWithoutPeers(ctx)
 		if e == nil && st.Self.DNSName != "" {
 			dnsName = st.Self.DNSName
@@ -174,6 +174,8 @@ func (s *Server) StartWithTsnet(hostname, authKey string, routes []string) error
 			slog.Info("tsnet server error: %v", err)
 		}
 	}()
+
+	slog.Info("Tailscale SSH is enabled - use 'tailscale ssh' to connect")
 
 	addr := s.config.Address()
 	return http.ListenAndServe(addr, s.mux)

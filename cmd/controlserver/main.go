@@ -14,10 +14,7 @@ import (
 //go:embed web
 var webFS embed.FS
 
-var (
-	cfg    *config.Config
-	logger *slog.Logger
-)
+var cfg *config.Config
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
@@ -67,6 +64,6 @@ func initLogger(cfg *config.Config) {
 		Level: cfg.GetLogLevel(),
 	}
 	handler := slog.NewTextHandler(os.Stdout, opts)
-	logger = slog.New(handler)
+	logger := slog.New(handler)
 	slog.SetDefault(logger)
 }

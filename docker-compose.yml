@@ -13,7 +13,7 @@ services:
     # Run in privileged mode for full kernel access (required for VPN functionality)
     privileged: true
     ports:
-      - 8080:8080
+      - "${CONTROL_PORT}:${CONTROL_PORT}"
 
     # Required capabilities for VPN functionality
     cap_add:
@@ -42,10 +42,10 @@ services:
       - TS_AUTHKEY=${TS_AUTHKEY}
       - TS_HOSTNAME=${TS_HOSTNAME:-tailswan-gateway}
       - TS_ROUTES=${TS_ROUTES:-10.1.0.0/24,10.2.0.0/24}
-      - TS_SSH=${TS_SSH:-true}
+      - TS_SSH=${TS_SSH:-false}
       - TS_EXTRA_ARGS=${TS_EXTRA_ARGS:-}
       - TS_STATE_DIR=${TS_STATE_DIR:-/var/lib/tailscale}
-      - USE_TSNET=true
+      - USE_TSNET=false
 
       # strongSwan configuration
       - SWAN_AUTO_START=${SWAN_AUTO_START:-false}

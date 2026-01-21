@@ -18,6 +18,7 @@
         buildInputs = with pkgs; [
           gnumake
           go
+          golangci-lint
           nodejs
           playwright
           playwright-mcp
