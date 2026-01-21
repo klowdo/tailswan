@@ -17,6 +17,7 @@ func SetupSystem() error {
 	}
 
 	for _, p := range sysctlParams {
+		// #nosec G204 -- sysctlParams are hardcoded constants defined in this function
 		cmd := exec.Command("sysctl", "-w", fmt.Sprintf("%s=%s", p.key, p.value))
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("sysctl %s: %w", p.key, err)
@@ -31,6 +32,7 @@ func SetupSystem() error {
 	}
 
 	for _, rule := range iptablesRules {
+		// #nosec G204 -- iptablesRules are hardcoded constants defined in this function
 		cmd := exec.Command(rule[0], rule[1:]...)
 		_ = cmd.Run()
 	}

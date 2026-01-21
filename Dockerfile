@@ -19,31 +19,25 @@ RUN git clone  --single-branch  --branch=${TAILSCALE_VERSION} https://github.com
     CGO_ENABLED=0 go build -o /tailscale ./cmd/tailscale && \
     CGO_ENABLED=0 go build -o /tailscaled ./cmd/tailscaled
 
-# Build stage for TailSwan supervisor
-FROM golang:1.25.6-alpine3.22 AS supervisor-builder
+# Base builder stage with dependencies
+FROM golang:1.25.6-alpine3.22 AS base-builder
 
 WORKDIR /build
 
-COPY go.mod go.sum* ./
-RUN go mod download
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
 
-COPY cmd/ ./cmd/
-COPY internal/ ./internal/
+COPY . .
 
-RUN CGO_ENABLED=0 go build -o /tailswan ./cmd/tailswan
+# Build stage for TailSwan supervisor
+FROM base-builder AS supervisor-builder
+
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /tailswan ./cmd/tailswan
 
 # Build stage for TailSwan control server
-FROM golang:1.25.6-alpine3.22 AS controlserver-builder
+FROM base-builder AS controlserver-builder
 
-WORKDIR /build
-
-COPY go.mod go.sum* ./
-RUN go mod download
-
-COPY cmd/controlserver/ ./cmd/controlserver/
-COPY internal/ ./internal/
-
-RUN CGO_ENABLED=0 go build -o /controlserver ./cmd/controlserver
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /controlserver ./cmd/controlserver
 
 # Runtime stage
 FROM alpine:3.22

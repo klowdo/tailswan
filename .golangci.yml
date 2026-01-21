@@ -1,0 +1,109 @@
+version: 2
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+output:
+  formats:
+    colored-line-number:
+      path: stdout
+  show-stats: true
+  sort-results: true
+  sort-order:
+    - linter
+    - severity
+    - file
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - unparam
+    - goconst
+    - gocyclo
+    - gocritic
+    - bodyclose
+    - nilerr
+    - errorlint
+    - nolintlint
+    - gosec
+  disable:
+    - revive
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  govet:
+    enable-all: true
+    settings:
+      shadow:
+        strict: false
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+  gocyclo:
+    min-complexity: 15
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+      - experimental
+      - opinionated
+    disabled-checks:
+      - whyNoLint
+      - unnamedResult
+
+  gosec:
+    excludes:
+      - G204
+      - G304
+    config:
+      G101:
+        pattern: "(?i)passwd|pass|password|pwd|secret|token|pw|apiKey|bearer|cred"
+
+  misspell:
+    locale: US
+
+formatters-settings:
+  gofmt:
+    simplify: true
+
+  goimports:
+    local-prefixes: github.com/klowdo/tailswan
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - goconst
+        - errcheck
+
+    - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+
+    - linters:
+        - staticcheck
+      text: "SA1019:"
+
+  max-issues-per-linter: 50
+  max-same-issues: 3

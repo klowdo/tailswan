@@ -1,4 +1,4 @@
-.PHONY: build run stop clean logs shell help push tag
+.PHONY: build run stop clean logs shell help push tag test lint tidy fmt go-build install ci
 
 IMAGE_NAME := tailswan
 CONTAINER_NAME := tailswan
@@ -8,6 +8,7 @@ TAG := latest
 help:
 	@echo "TailSwan Makefile Commands"
 	@echo ""
+	@echo "Docker Commands:"
 	@echo "  make build       - Build the Docker image"
 	@echo "  make push        - Build, tag and push image to registry"
 	@echo "  make tag         - Tag the current image for registry"
@@ -18,6 +19,15 @@ help:
 	@echo "  make shell       - Open a shell in the running container"
 	@echo "  make status      - Show TailSwan status"
 	@echo "  make rebuild     - Rebuild and restart the container"
+	@echo ""
+	@echo "Go Development Commands:"
+	@echo "  make go-build    - Build the Go binary"
+	@echo "  make test        - Run Go tests"
+	@echo "  make lint        - Run golangci-lint"
+	@echo "  make tidy        - Run go mod tidy and verify"
+	@echo "  make fmt         - Format Go code"
+	@echo "  make install     - Install the binary"
+	@echo "  make ci          - Run all CI checks (tidy, lint, test)"
 	@echo ""
 
 build:
@@ -59,3 +69,37 @@ push: build tag
 	@echo "Pushing image to registry..."
 	docker push $(REGISTRY)/$(IMAGE_NAME):$(TAG)
 	@echo "Image pushed to $(REGISTRY)/$(IMAGE_NAME):$(TAG)"
+
+go-build:
+	@echo "Building Go binary..."
+	go build -o bin/tailswan ./cmd/tailswan
+	@echo "Binary built: bin/tailswan"
+
+test:
+	@echo "Running Go tests..."
+	go test -v -race -coverprofile=coverage.out ./...
+
+bin/golanci-lint: 
+	@scripts/build-linter.sh
+
+lint: bin/golanci-lint
+	@echo "Running golangci-lint..."
+	golangci-lint run --timeout=5m
+
+tidy:
+	@echo "Running go mod tidy..."
+	go mod tidy
+	@git diff --exit-code go.mod go.sum || (echo "Error: go.mod or go.sum changed after 'go mod tidy'. Please commit the changes." && exit 1)
+	@echo "go.mod and go.sum are tidy ✓"
+
+fmt:
+	@echo "Formatting Go code..."
+	golangci-lint fmt
+	@echo "Code formatted ✓"
+
+install:
+	@echo "Installing binary..."
+	go install ./cmd/tailswan
+
+ci: tidy lint test
+	@echo "All CI checks passed ✓"

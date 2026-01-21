@@ -38,6 +38,18 @@ logs/
 # Build artifacts
 *.tar
 *.tar.gz
+bin/
+dist/
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+coverage.out
+coverage.html
 
 # Temporary files
 tmp/

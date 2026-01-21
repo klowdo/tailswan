@@ -41,3 +41,16 @@ Thumbs.db
 
 # Build artifacts
 *.log
+bin/
+dist/
+*.test
+coverage.out
+coverage.html
+
+# Temporary files
+tmp/
+temp/
+tailscale-data/
+volumes/
+logs/
+config

@@ -104,7 +104,15 @@ func (s *Server) Start() error {
 	slog.Info("    GET  /api/tailscale/serve           - Tailscale Serve configuration")
 	slog.Info("    GET  /api/tailscale/whois           - WhoIs lookup")
 
-	return http.ListenAndServe(addr, s.mux)
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           s.mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	return server.ListenAndServe()
 }
 
 func (s *Server) StartWithTsnet(hostname, authKey string, routes []string) error {
@@ -172,7 +180,14 @@ func (s *Server) StartWithTsnet(hostname, authKey string, routes []string) error
 
 	go func() {
 		slog.Info("Starting tsnet HTTPS server on :443...")
-		if err := http.Serve(s.tsnetListener, s.mux); err != nil {
+		tsnetHTTPServer := &http.Server{
+			Handler:           s.mux,
+			ReadHeaderTimeout: 10 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       120 * time.Second,
+		}
+		if err := tsnetHTTPServer.Serve(s.tsnetListener); err != nil {
 			slog.Info("tsnet server error", "error", err)
 		}
 	}()
@@ -180,7 +195,15 @@ func (s *Server) StartWithTsnet(hostname, authKey string, routes []string) error
 	slog.Info("Tailscale SSH is enabled - use 'tailscale ssh' to connect")
 
 	addr := s.config.Address()
-	return http.ListenAndServe(addr, s.mux)
+	localServer := &http.Server{
+		Addr:              addr,
+		Handler:           s.mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	return localServer.ListenAndServe()
 }
 
 func (s *Server) Close() {

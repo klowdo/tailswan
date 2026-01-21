@@ -16,9 +16,9 @@ type EventBroadcaster struct {
 	clients    map[chan models.SSEMessage]bool
 	clientsMux sync.RWMutex
 
-	viciSession      *vici.Session
-	tailscaleClient  *tailscale.LocalClient
-	stateTracker     *StateTracker
+	viciSession     *vici.Session
+	tailscaleClient *tailscale.LocalClient
+	stateTracker    *StateTracker
 
 	ctx    context.Context
 	cancel context.CancelFunc
