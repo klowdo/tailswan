@@ -4,31 +4,14 @@
 # Build arguments:
 #   GO_VERSION        - Go version for build stages (default: 1.25.6)
 #   ALPINE_VERSION    - Alpine Linux version (default: 3.22)
-#   TAILSCALE_VERSION - Tailscale version to build (default: v1.92.5)
+#   TAILSCALE_VERSION - Tailscale version tag (default: latest)
 #
 # Example:
-#   docker build --build-arg GO_VERSION=1.25.5 --build-arg TAILSCALE_VERSION=v1.92.0 .
+#   docker build --build-arg GO_VERSION=1.25.5 --build-arg TAILSCALE_VERSION=v1.92.5 .
 
 ARG GO_VERSION=1.25.6
 ARG ALPINE_VERSION=3.22
 ARG TAILSCALE_VERSION=v1.92.5
-
-# Build stage for Tailscale
-FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS tailscale-builder
-
-ARG TAILSCALE_VERSION
-
-RUN apk add --no-cache git
-
-WORKDIR /build
-
-# Clone and build Tailscale
-RUN git config --global advice.detachedHead false
-RUN git clone  --single-branch  --branch=${TAILSCALE_VERSION} https://github.com/tailscale/tailscale.git && \
-    cd tailscale && \
-    go mod download && \
-    CGO_ENABLED=0 go build -o /tailscale ./cmd/tailscale && \
-    CGO_ENABLED=0 go build -o /tailscaled ./cmd/tailscaled
 
 # Base builder stage with dependencies
 FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS base-builder
@@ -50,36 +33,20 @@ FROM base-builder AS controlserver-builder
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /controlserver ./cmd/controlserver
 
-# Runtime stage
-ARG ALPINE_VERSION
-FROM alpine:${ALPINE_VERSION}
+# Runtime stage - use Tailscale image as base
+ARG TAILSCALE_VERSION
+FROM ghcr.io/tailscale/tailscale:${TAILSCALE_VERSION}
 
 LABEL org.opencontainers.image.title="TailSwan"
 LABEL org.opencontainers.image.description="Bridge strongSwan/swanctl IPsec VPN and Tailscale networks"
 LABEL org.opencontainers.image.source="https://github.com/tailswan/tailswan"
 
-# Install strongSwan and required utilities
+# Install strongSwan and bash on top of Tailscale image
+# (Tailscale image already includes iptables, iproute2, ca-certificates, and legacy iptables symlinks)
 RUN apk add --no-cache \
     strongswan \
-    iptables \
-    ip6tables \
-    iproute2 \
-    curl \
-    ca-certificates \
-    openssl \
+    bash \
     && rm -rf /var/cache/apk/*
-
-# Alpine 3.19+ replaced legacy iptables with nftables based implementation.
-# Tailscale and strongSwan are used on some hosts that don't support nftables,
-# such as Synology NAS, so link iptables back to legacy version.
-# Hosts that don't require legacy iptables should be able to use in nftables mode.
-# See https://github.com/tailscale/tailscale/issues/17854
-RUN rm /usr/sbin/iptables && ln -s /usr/sbin/iptables-legacy /usr/sbin/iptables && \
-    rm /usr/sbin/ip6tables && ln -s /usr/sbin/ip6tables-legacy /usr/sbin/ip6tables
-
-# Copy Tailscale binaries from builder
-COPY --from=tailscale-builder /tailscale /usr/local/bin/tailscale
-COPY --from=tailscale-builder /tailscaled /usr/local/bin/tailscaled
 
 # Copy TailSwan binaries from builders
 COPY --from=supervisor-builder /tailswan /usr/local/bin/tailswan
@@ -108,6 +75,9 @@ RUN mkdir -p /var/run/tailscale \
     /etc/swanctl/rsa \
     /etc/swanctl/ecdsa \
     /etc/swanctl/pkcs12
+
+# Set environment variable for tailscale CLI to find the socket
+ENV TAILSCALE_SOCKET=/var/run/tailscale/tailscaled.sock
 
 # Health check
 HEALTHCHECK --interval=60s --timeout=5s --start-period=10s --retries=3 \

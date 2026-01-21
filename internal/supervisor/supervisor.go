@@ -71,7 +71,9 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		slog.Info("Using tsnet for Tailscale integration (embedded)")
 		slog.Info("Control server will handle Tailscale connectivity via tsnet")
 	} else {
-		slog.Info("Starting tailscaled")
+		slog.Info("Starting tailscaled",
+			"state_dir", s.config.TailscaleStateDir,
+			"socket", s.config.TailscaleSocket)
 		if err := s.tailscaled.Start(
 			"tailscaled",
 			"--state", fmt.Sprintf("%s/tailscaled.state", s.config.TailscaleStateDir),
@@ -80,6 +82,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		); err != nil {
 			return fmt.Errorf("tailscaled start: %w", err)
 		}
+		slog.Info("✓ tailscaled process started")
 
 		slog.Info("Waiting for tailscaled to be ready")
 		readyCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
@@ -94,9 +97,11 @@ func (s *Supervisor) Start(ctx context.Context) error {
 			return fmt.Errorf("tailscale up: %w", err)
 		}
 
-		slog.Info("Enabling Tailscale Serve")
-		if err := s.tsService.EnableServe(s.config.ControlPort); err != nil {
-			return fmt.Errorf("tailscale serve: %w", err)
+		if s.config.TailscaleConfig.EnableServe {
+			slog.Info("Enabling Tailscale Serve", "port", s.config.ControlPort)
+			if err := s.tsService.EnableServe(s.config.ControlPort); err != nil {
+				return fmt.Errorf("tailscale serve: %w", err)
+			}
 		}
 	}
 

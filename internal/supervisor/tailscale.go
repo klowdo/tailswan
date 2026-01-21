@@ -24,13 +24,14 @@ func NewTailscaleService() *TailscaleService {
 }
 
 type TailscaleConfig struct {
-	StateDir  string
-	Socket    string
-	Hostname  string
-	AuthKey   string
-	Routes    []string
-	SSH       bool
-	ExtraArgs []string
+	StateDir    string
+	Socket      string
+	Hostname    string
+	AuthKey     string
+	Routes      []string
+	SSH         bool
+	ExtraArgs   []string
+	EnableServe bool
 }
 
 func (ts *TailscaleService) WaitReady(ctx context.Context) error {
@@ -103,18 +104,30 @@ func (ts *TailscaleService) Up(cfg TailscaleConfig) error {
 func (ts *TailscaleService) EnableServe(port string) error {
 	ctx := context.Background()
 
+	status, err := ts.client.Status(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get tailscale status: %w", err)
+	}
+
+	if status.Self == nil || status.Self.DNSName == "" {
+		return fmt.Errorf("tailscale DNS name not available")
+	}
+
+	hostname := strings.TrimSuffix(status.Self.DNSName, ".")
+	slog.Info("Configuring Tailscale Serve", "hostname", hostname, "port", port)
+
 	config := &ipn.ServeConfig{
 		TCP: map[uint16]*ipn.TCPPortHandler{
 			443: {HTTPS: true},
 			80:  {HTTP: true},
 		},
 		Web: map[ipn.HostPort]*ipn.WebServerConfig{
-			"${TS_CERT_DOMAIN}:443": {
+			ipn.HostPort(hostname + ":443"): {
 				Handlers: map[string]*ipn.HTTPHandler{
 					"/": {Proxy: "http://127.0.0.1:" + port},
 				},
 			},
-			"${TS_CERT_DOMAIN}:80": {
+			ipn.HostPort(hostname + ":80"): {
 				Handlers: map[string]*ipn.HTTPHandler{
 					"/": {Proxy: "http://127.0.0.1:" + port},
 				},
@@ -126,7 +139,7 @@ func (ts *TailscaleService) EnableServe(port string) error {
 		return fmt.Errorf("failed to set serve config: %w", err)
 	}
 
-	slog.Info("✓ Control server available via Tailscale Serve (HTTP and HTTPS)")
+	slog.Info("✓ Control server available via Tailscale Serve", "url", "https://"+hostname)
 
 	serveStatus, err := ts.client.GetServeConfig(ctx)
 	if err == nil && serveStatus != nil {

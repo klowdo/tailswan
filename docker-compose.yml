@@ -45,12 +45,16 @@ services:
       - TS_SSH=${TS_SSH:-false}
       - TS_EXTRA_ARGS=${TS_EXTRA_ARGS:-}
       - TS_STATE_DIR=${TS_STATE_DIR:-/var/lib/tailscale}
+      - TS_SOCKET=${TS_SOCKET:-/var/run/tailscale/tailscaled.sock}
       - USE_TSNET=${USE_TSNET:-false}
+      # Set socket path for tailscale CLI
+      - TAILSCALE_SOCKET=/var/run/tailscale/tailscaled.sock
 
       # strongSwan configuration
       - SWAN_AUTO_START=${SWAN_AUTO_START:-false}
       - SWAN_CONNECTIONS=${SWAN_CONNECTIONS:-}
       - SWAN_CONFIG=${SWAN_CONFIG:-/etc/swanctl/swanctl.conf}
+      - SWAN_TS_SERVE=${SWAN_TS_SERVE:-false}
 
     # Volume mounts
     volumes:
