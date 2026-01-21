@@ -11,13 +11,18 @@ import (
 	"github.com/klowdo/tailswan/internal/cli"
 	"github.com/klowdo/tailswan/internal/config"
 	"github.com/klowdo/tailswan/internal/supervisor"
+	"github.com/klowdo/tailswan/internal/version"
 	"github.com/spf13/cobra"
 )
 
 var cfg *config.Config
 
 func main() {
-	if err := fang.Execute(context.Background(), rootCmd); err != nil {
+	if err := fang.Execute(
+		context.Background(),
+		rootCmd,
+		fang.WithVersion(version.Get()),
+	); err != nil {
 		os.Exit(1)
 	}
 }

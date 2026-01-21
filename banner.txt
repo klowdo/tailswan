@@ -1,0 +1,26 @@
+
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║   ████████╗ █████╗ ██╗██╗     ███████╗██╗    ██╗ █████╗ ███╗   ██╗  ║
+║   ╚══██╔══╝██╔══██╗██║██║     ██╔════╝██║    ██║██╔══██╗████╗  ██║  ║
+║      ██║   ███████║██║██║     ███████╗██║ █╗ ██║███████║██╔██╗ ██║  ║
+║      ██║   ██╔══██║██║██║     ╚════██║██║███╗██║██╔══██║██║╚██╗██║  ║
+║      ██║   ██║  ██║██║███████╗███████║╚███╔███╔╝██║  ██║██║ ╚████║  ║
+║      ╚═╝   ╚═╝  ╚═╝╚═╝╚══════╝╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═══╝  ║
+║                                                                      ║
+║              IPsec & Tailscale VPN Gateway Supervisor               ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+  Bridge strongSwan/swanctl IPsec VPN and Tailscale networks
+
+  Commands:
+    tailswan serve          Start the supervisor
+    tailswan status         Show service status
+    tailswan connections    List strongSwan connections
+    tailswan start <conn>   Initiate a connection
+    tailswan stop <conn>    Terminate a connection
+    tailswan healthcheck    Check service health
+
+  Documentation: https://github.com/tailswan/tailswan
+

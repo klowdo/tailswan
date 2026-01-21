@@ -46,7 +46,7 @@ COPY internal/ ./internal/
 RUN CGO_ENABLED=0 go build -o /controlserver ./cmd/controlserver
 
 # Runtime stage
-FROM alpine:3.19
+FROM alpine:3.22
 
 LABEL org.opencontainers.image.title="TailSwan"
 LABEL org.opencontainers.image.description="Bridge strongSwan/swanctl IPsec VPN and Tailscale networks"
@@ -63,6 +63,14 @@ RUN apk add --no-cache \
     openssl \
     && rm -rf /var/cache/apk/*
 
+# Alpine 3.19+ replaced legacy iptables with nftables based implementation.
+# Tailscale and strongSwan are used on some hosts that don't support nftables,
+# such as Synology NAS, so link iptables back to legacy version.
+# Hosts that don't require legacy iptables should be able to use in nftables mode.
+# See https://github.com/tailscale/tailscale/issues/17854
+RUN rm /usr/sbin/iptables && ln -s /usr/sbin/iptables-legacy /usr/sbin/iptables && \
+    rm /usr/sbin/ip6tables && ln -s /usr/sbin/ip6tables-legacy /usr/sbin/ip6tables
+
 # Copy Tailscale binaries from builder
 COPY --from=tailscale-builder /tailscale /usr/local/bin/tailscale
 COPY --from=tailscale-builder /tailscaled /usr/local/bin/tailscaled
@@ -78,6 +86,9 @@ RUN mkdir -p /etc/bash_completion.d \
     tailswan completion bash > /etc/bash_completion.d/tailswan && \
     tailswan completion zsh > /usr/share/zsh/site-functions/_tailswan && \
     tailswan completion fish > /usr/share/fish/vendor_completions.d/tailswan.fish
+
+# Copy and install welcome banner
+COPY banner.txt /etc/motd
 
 # Create necessary directories
 RUN mkdir -p /var/run/tailscale \
