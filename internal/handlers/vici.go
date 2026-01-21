@@ -24,10 +24,11 @@ func NewVICIHandler() (*VICIHandler, error) {
 	}, nil
 }
 
-func (h *VICIHandler) Close() {
+func (h *VICIHandler) Close() error {
 	if h.session != nil {
-		h.session.Close()
+		return h.session.Close()
 	}
+	return nil
 }
 
 func (h *VICIHandler) Session() *vici.Session {
@@ -60,7 +61,14 @@ func (h *VICIHandler) ConnectionUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := vici.NewMessage()
-	msg.Set("child", req.Name)
+	if err := msg.Set("child", req.Name); err != nil {
+		respondJSON(w, http.StatusInternalServerError, models.Response{
+			Success: false,
+			Message: "Failed to set message field",
+			Error:   err.Error(),
+		})
+		return
+	}
 
 	_, err := h.session.CommandRequest("initiate", msg)
 	if err != nil {
@@ -104,7 +112,14 @@ func (h *VICIHandler) ConnectionDown(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := vici.NewMessage()
-	msg.Set("child", req.Name)
+	if err := msg.Set("child", req.Name); err != nil {
+		respondJSON(w, http.StatusInternalServerError, models.Response{
+			Success: false,
+			Message: "Failed to set message field",
+			Error:   err.Error(),
+		})
+		return
+	}
 
 	_, err := h.session.CommandRequest("terminate", msg)
 	if err != nil {
@@ -189,5 +204,7 @@ func (h *VICIHandler) ListSAs(w http.ResponseWriter, r *http.Request) {
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }

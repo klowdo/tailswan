@@ -1,0 +1,65 @@
+---
+repos:
+  # Go formatting and imports
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        entry: golangci-lint
+        language: system
+        files: \.go$
+        pass_filenames: false
+        args: [run, --fix]
+
+  # Nix formatting
+  - repo: local
+    hooks:
+      - id: alejandra
+        name: alejandra
+        entry: alejandra
+        language: system
+        files: \.nix$
+
+  # General hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+        exclude: \.md$
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+  # Go specific hooks (tests disabled for faster commits)
+  - repo: local
+    hooks:
+      - id: go-test
+        name: go test
+        entry: go
+        language: system
+        files: \.go$
+        args: [test, -short, ./...]
+        pass_filenames: false
+
+      - id: go-build
+        name: go build
+        entry: go
+        language: system
+        files: \.go$
+        args: [build, ./...]
+        pass_filenames: false
+
+  - repo: local
+    hooks:
+      - id: go-mod-tidy
+        name: go mod tidy
+        entry: go
+        language: system
+        files: go\.(mod|sum)$
+        args: [mod, tidy]
+        pass_filenames: false

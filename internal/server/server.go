@@ -58,7 +58,9 @@ func New(cfg *config.Config, webFS embed.FS) (*Server, error) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html")
-			w.Write(content)
+			if _, err := w.Write(content); err != nil {
+				http.Error(w, "Failed to write response", http.StatusInternalServerError)
+			}
 		} else {
 			http.NotFound(w, r)
 		}
@@ -171,7 +173,7 @@ func (s *Server) StartWithTsnet(hostname, authKey string, routes []string) error
 	go func() {
 		slog.Info("Starting tsnet HTTPS server on :443...")
 		if err := http.Serve(s.tsnetListener, s.mux); err != nil {
-			slog.Info("tsnet server error: %v", err)
+			slog.Info("tsnet server error", "error", err)
 		}
 	}()
 
@@ -187,11 +189,15 @@ func (s *Server) Close() {
 	}
 
 	if s.tsnetListener != nil {
-		s.tsnetListener.Close()
+		if err := s.tsnetListener.Close(); err != nil {
+			slog.Error("Failed to close tsnet listener", "error", err)
+		}
 	}
 
 	if s.tsnetServer != nil {
-		s.tsnetServer.Close()
+		if err := s.tsnetServer.Close(); err != nil {
+			slog.Error("Failed to close tsnet server", "error", err)
+		}
 	}
 
 	if s.broadcaster != nil {
@@ -199,6 +205,8 @@ func (s *Server) Close() {
 	}
 
 	if s.viciHandler != nil {
-		s.viciHandler.Close()
+		if err := s.viciHandler.Close(); err != nil {
+			slog.Error("Failed to close VICI handler", "error", err)
+		}
 	}
 }

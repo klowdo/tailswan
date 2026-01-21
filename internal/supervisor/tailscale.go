@@ -52,7 +52,7 @@ func (ts *TailscaleService) WaitReady(ctx context.Context) error {
 			}
 
 			if attempts%10 == 0 {
-				slog.Info("Still waiting for tailscaled... (%d/60 seconds)", attempts)
+				slog.Info("Still waiting for tailscaled...", "attempts", attempts, "max", 60)
 			}
 		}
 	}
@@ -130,7 +130,7 @@ func (ts *TailscaleService) EnableServe(port string) error {
 
 	serveStatus, err := ts.client.GetServeConfig(ctx)
 	if err == nil && serveStatus != nil {
-		slog.Info("Serve config: %+v", serveStatus)
+		slog.Info("Serve config loaded", "config", serveStatus)
 	}
 
 	return nil

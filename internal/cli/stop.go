@@ -18,7 +18,9 @@ func NewStopCmd() *cobra.Command {
 			if err := sw.Terminate(conn); err != nil {
 				return fmt.Errorf("failed to stop connection %s: %w", conn, err)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Connection '%s' terminated\n", conn)
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Connection '%s' terminated\n", conn); err != nil {
+				return fmt.Errorf("failed to write output: %w", err)
+			}
 			return nil
 		},
 	}

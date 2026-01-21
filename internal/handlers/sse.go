@@ -50,11 +50,17 @@ func (h *SSEHandler) Events(w http.ResponseWriter, r *http.Request) {
 		case <-notify:
 			return
 		case msg := <-clientChan:
-			fmt.Fprintf(w, "event: %s\n", msg.Event)
-			fmt.Fprintf(w, "data: %s\n\n", string(msg.Data))
+			if _, err := fmt.Fprintf(w, "event: %s\n", msg.Event); err != nil {
+				return
+			}
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", string(msg.Data)); err != nil {
+				return
+			}
 			flusher.Flush()
 		case <-heartbeat.C:
-			fmt.Fprintf(w, ": heartbeat\n\n")
+			if _, err := fmt.Fprintf(w, ": heartbeat\n\n"); err != nil {
+				return
+			}
 			flusher.Flush()
 		}
 	}

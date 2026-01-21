@@ -16,7 +16,9 @@ func NewReloadCmd() *cobra.Command {
 			if err := sw.Reload(); err != nil {
 				return fmt.Errorf("failed to reload configuration: %w", err)
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "Configuration reloaded")
+			if _, err := fmt.Fprintln(cmd.OutOrStdout(), "Configuration reloaded"); err != nil {
+				return fmt.Errorf("failed to write output: %w", err)
+			}
 			return nil
 		},
 	}

@@ -18,7 +18,9 @@ func NewStartCmd() *cobra.Command {
 			if err := sw.Initiate(conn); err != nil {
 				return fmt.Errorf("failed to start connection %s: %w", conn, err)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Connection '%s' initiated\n", conn)
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Connection '%s' initiated\n", conn); err != nil {
+				return fmt.Errorf("failed to write output: %w", err)
+			}
 			return nil
 		},
 	}

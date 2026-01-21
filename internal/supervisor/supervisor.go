@@ -111,15 +111,21 @@ func (s *Supervisor) Stop() {
 	slog.Info("Shutting down")
 
 	if s.server != nil {
-		s.server.Kill()
+		if err := s.server.Kill(); err != nil {
+			slog.Error("Failed to kill server", "error", err)
+		}
 	}
 
 	if s.tailscaled != nil {
-		s.tailscaled.Kill()
+		if err := s.tailscaled.Kill(); err != nil {
+			slog.Error("Failed to kill tailscaled", "error", err)
+		}
 	}
 
 	if s.ipsec != nil {
-		s.ipsec.Kill()
+		if err := s.ipsec.Kill(); err != nil {
+			slog.Error("Failed to kill ipsec", "error", err)
+		}
 	}
 
 	time.Sleep(2 * time.Second)

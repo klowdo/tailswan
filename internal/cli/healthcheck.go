@@ -15,7 +15,9 @@ func NewHealthCheckCmd() *cobra.Command {
 			if err := supervisor.HealthCheck(); err != nil {
 				return fmt.Errorf("health check failed: %w", err)
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "All services healthy")
+			if _, err := fmt.Fprintln(cmd.OutOrStdout(), "All services healthy"); err != nil {
+				return fmt.Errorf("failed to write output: %w", err)
+			}
 			return nil
 		},
 	}

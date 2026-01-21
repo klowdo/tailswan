@@ -24,7 +24,7 @@ func (sw *SwanService) LoadConfig(path string) error {
 }
 
 func (sw *SwanService) Initiate(connection string) error {
-	slog.Info("Initiating connection: %s", connection)
+	slog.Info("Initiating connection", "connection", connection)
 
 	cmd := exec.Command("swanctl", "--initiate", "--child", connection)
 	output, err := cmd.CombinedOutput()
@@ -37,7 +37,7 @@ func (sw *SwanService) Initiate(connection string) error {
 }
 
 func (sw *SwanService) Terminate(connection string) error {
-	slog.Info("Terminating connection: %s", connection)
+	slog.Info("Terminating connection", "connection", connection)
 
 	cmd := exec.Command("swanctl", "--terminate", "--ike", connection)
 	output, err := cmd.CombinedOutput()

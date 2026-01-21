@@ -22,6 +22,7 @@
           nodejs
           playwright
           playwright-mcp
+          alejandra
         ];
       };
     });
