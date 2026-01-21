@@ -55,4 +55,4 @@ coverage.html
 tmp/
 temp/
 .direnv
-config
+/config/
