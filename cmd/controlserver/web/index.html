@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TailSwan Control Panel</title>
+    <meta name="description" content="Manage IPsec and Tailscale VPN connections through a unified control panel">
+
+    <link rel="icon" type="image/jpeg" href="/static/logo.jpeg">
+    <link rel="stylesheet" href="/static/style.css">
+
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TailSwan">
+    <link rel="apple-touch-icon" href="/static/icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/static/icons/icon-192.png">
+
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <meta name="msapplication-TileColor" content="#0f172a">
+    <meta name="msapplication-TileImage" content="/static/icons/icon-144.png">
+</head>
+<body x-data="tailswanApp()">
+    <div class="container">
+        <header>
+            <h1><img src="/static/logo.jpeg" alt="TailSwan Logo" style="height: 60px; vertical-align: middle; margin-right: 10px; border-radius: 8px;"> TailSwan Control Panel</h1>
+            <p class="subtitle">Manage IPsec & Tailscale Networks</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">API Server:</span>
+                <span
+                    class="status-value"
+                    :class="serverOnline ? 'online' : 'offline'"
+                    x-text="serverOnline ? 'Online' : 'Offline'">
+                </span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Tailscale:</span>
+                <span
+                    class="status-value"
+                    :class="tailscaleRunning ? 'online' : 'offline'"
+                    x-text="tailscaleRunning ? 'Running' : 'Not Running'">
+                </span>
+            </div>
+            <button @click="refreshAll()" class="btn btn-refresh">↻ Refresh</button>
+        </div>
+
+        <div class="tabs">
+            <button
+                class="tab-button"
+                :class="{ 'active': currentTab === 'ipsec' }"
+                @click="switchTab('ipsec')">
+                IPsec / strongSwan
+            </button>
+            <button
+                class="tab-button"
+                :class="{ 'active': currentTab === 'tailscale' }"
+                @click="switchTab('tailscale')">
+                Tailscale
+            </button>
+        </div>
+
+        <main>
+            <!-- IPsec Tab -->
+            <div class="tab-content" :class="{ 'active': currentTab === 'ipsec' }">
+                <section class="card">
+                    <h2>Configured Connections</h2>
+                    <div class="list-container">
+                        <div x-show="connections.length === 0" class="empty-state">No connections configured</div>
+                        <template x-for="conn in connections" :key="conn.name">
+                            <div class="connection-item">
+                                <div class="connection-info">
+                                    <div class="connection-name" x-text="conn.name"></div>
+                                    <div class="connection-details" x-text="conn.details"></div>
+                                </div>
+                                <div class="connection-actions">
+                                    <button
+                                        @click="bringConnectionUp(conn.name)"
+                                        class="btn btn-success btn-sm"
+                                        :disabled="!!loadingConnections[conn.name]"
+                                        x-html="loadingConnections[conn.name] === 'up' ? '<span class=&quot;spinner&quot;>⟳</span> Bringing Up...' : '▲ Up'">
+                                    </button>
+                                    <button
+                                        @click="bringConnectionDown(conn.name)"
+                                        class="btn btn-danger btn-sm"
+                                        :disabled="!!loadingConnections[conn.name]"
+                                        x-html="loadingConnections[conn.name] === 'down' ? '<span class=&quot;spinner&quot;>⟳</span> Bringing Down...' : '▼ Down'">
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <h2>Active Security Associations</h2>
+                    <div class="list-container">
+                        <div x-show="sas.length === 0" class="empty-state">No active security associations</div>
+                        <template x-for="sa in sas" :key="sa.name">
+                            <div class="sa-item">
+                                <div class="sa-info">
+                                    <div class="sa-name" x-text="sa.name"></div>
+                                    <div class="sa-details" x-text="sa.details"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <h2>Manual Connection Control</h2>
+                    <div class="form-group">
+                        <label for="connection-name">Connection Name:</label>
+                        <input
+                            type="text"
+                            x-model="manualConnectionName"
+                            @keyup.enter="bringConnectionUp(manualConnectionName)"
+                            placeholder="Enter connection name"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <div class="button-group">
+                        <button
+                            @click="bringConnectionUp(manualConnectionName)"
+                            class="btn btn-success"
+                            :disabled="!!loadingConnections[manualConnectionName]"
+                            x-html="loadingConnections[manualConnectionName] === 'up' ? '<span class=&quot;spinner&quot;>⟳</span> Bringing Up...' : '▲ Bring Up'">
+                        </button>
+                        <button
+                            @click="bringConnectionDown(manualConnectionName)"
+                            class="btn btn-danger"
+                            :disabled="!!loadingConnections[manualConnectionName]"
+                            x-html="loadingConnections[manualConnectionName] === 'down' ? '<span class=&quot;spinner&quot;>⟳</span> Bringing Down...' : '▼ Bring Down'">
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tailscale Tab -->
+            <div class="tab-content" :class="{ 'active': currentTab === 'tailscale' }">
+                <section class="card">
+                    <h2>Tailnet Information</h2>
+                    <div class="info-grid" x-show="nodeInfo">
+                        <div class="info-item">
+                            <div class="info-label">State</div>
+                            <div class="info-value" x-text="nodeInfo?.state || 'Unknown'"></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Hostname</div>
+                            <div class="info-value" x-text="nodeInfo?.hostname || 'N/A'"></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Tailscale IP</div>
+                            <div class="info-value" x-text="nodeInfo?.ip || 'N/A'"></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">DNS Name</div>
+                            <div class="info-value" x-text="nodeInfo?.dns || 'N/A'"></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Online</div>
+                            <div class="info-value" x-text="nodeInfo?.online ? '✓ Yes' : '✗ No'"></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">OS</div>
+                            <div class="info-value" x-text="nodeInfo?.os || 'N/A'"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <h2>Tailnet Peers</h2>
+                    <div class="list-container">
+                        <div x-show="peers.length === 0" class="empty-state">No peers found</div>
+                        <template x-for="peer in peers" :key="peer.id">
+                            <div class="peer-item">
+                                <div class="peer-header">
+                                    <div class="peer-name" x-text="peer.hostname"></div>
+                                    <div class="peer-status" :class="peer.online ? 'online' : 'offline'" x-text="peer.online ? 'Online' : 'Offline'"></div>
+                                </div>
+                                <div class="peer-details" x-text="peer.details"></div>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <h2>Tailscale Serve Configuration</h2>
+                    <div class="list-container">
+                        <div x-show="!serveConfig" class="empty-state">No Tailscale Serve configuration active</div>
+                        <pre x-show="serveConfig" class="serve-config" x-text="serveConfig"></pre>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <div
+            class="notification"
+            :class="{ 'show': notification.show, [notification.type]: true }"
+            x-text="notification.message">
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+    </script>
+</body>
+</html>
