@@ -1,0 +1,86 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+output:
+  formats:
+    text:
+      path: stdout
+      colors: true
+  show-stats: true
+  sort-order:
+    - linter
+    - severity
+    - file
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - unparam
+    - goconst
+    - gocyclo
+    - gocritic
+    - bodyclose
+    - nilerr
+    - errorlint
+    - nolintlint
+    - gosec
+  disable:
+    - revive
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    govet:
+      enable-all: true
+      settings:
+        shadow:
+          strict: false
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocyclo:
+      min-complexity: 15
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+        - experimental
+        - opinionated
+      disabled-checks:
+        - whyNoLint
+        - unnamedResult
+    gosec:
+      excludes:
+        - G204
+        - G304
+      config:
+        G101:
+          pattern: "(?i)passwd|pass|password|pwd|secret|token|pw|apiKey|bearer|cred"
+    misspell:
+      locale: US
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/klowdo/tailswan
+
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 3

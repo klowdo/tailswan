@@ -1,0 +1,90 @@
+services:
+  tailswan:
+    # Use image from GitHub Container Registry
+    image: ghcr.io/klowdo/tailswan:latest
+
+    # Or build locally by commenting out 'image:' and uncommenting 'build:'
+    build: .
+
+    container_name: tailswan
+    hostname: tailswan
+    restart: unless-stopped
+
+    # Run in privileged mode for full kernel access (required for VPN functionality)
+    privileged: true
+    ports:
+      - "${CONTROL_PORT}:${CONTROL_PORT}"
+
+    # Required capabilities for VPN functionality
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    # Required for TUN/TAP device
+    devices:
+      - /dev/net/tun
+
+    # Kernel parameters for IP forwarding and routing
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+      - net.ipv4.conf.all.send_redirects=0
+      - net.ipv4.conf.default.send_redirects=0
+
+    # Load environment variables from .env file
+    env_file:
+      - .env
+
+    # Environment variables (configured via .env file)
+    environment:
+      # Tailscale configuration
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_HOSTNAME=${TS_HOSTNAME:-tailswan-gateway}
+      - TS_ROUTES=${TS_ROUTES:-10.1.0.0/24,10.2.0.0/24}
+      - TS_SSH=${TS_SSH:-false}
+      - TS_EXTRA_ARGS=${TS_EXTRA_ARGS:-}
+      - TS_STATE_DIR=${TS_STATE_DIR:-/var/lib/tailscale}
+      - TS_SOCKET=${TS_SOCKET:-/var/run/tailscale/tailscaled.sock}
+      - USE_TSNET=${USE_TSNET:-false}
+      # Set socket path for tailscale CLI
+      - TAILSCALE_SOCKET=/var/run/tailscale/tailscaled.sock
+
+      # strongSwan configuration
+      - SWAN_AUTO_START=${SWAN_AUTO_START:-false}
+      - SWAN_CONNECTIONS=${SWAN_CONNECTIONS:-}
+      - SWAN_CONFIG=${SWAN_CONFIG:-/etc/swanctl/swanctl.conf}
+      - SWAN_TS_SERVE=${SWAN_TS_SERVE:-false}
+
+    # Volume mounts
+    volumes:
+      # Mount your swanctl configuration
+      - ${SWANCTL_CONFIG_PATH:-./swanctl.conf}:/etc/swanctl/swanctl.conf:ro
+      - ${SWANCTL_SECRETS_CONFIG_PATH:-./swanctl-secrets.conf}:/etc/swanctl/swanctl-secrets.conf:ro
+      - ${IPSEC_SECRETS_CONFIG_PATH:-./swanctl-secrets.conf}:/etc/ipsec.secrets:ro
+
+      # Mount certificate directories (if using certificate auth)
+      # - ${CERTS_X509_PATH:-./certs/x509}:/etc/swanctl/x509:ro
+      # - ${CERTS_X509CA_PATH:-./certs/x509ca}:/etc/swanctl/x509ca:ro
+      # - ${CERTS_PRIVATE_PATH:-./certs/private}:/etc/swanctl/private:ro
+
+      # Persist Tailscale state (optional but recommended)
+      - tailscale-state:/var/lib/tailscale
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "tailswan", "healthcheck"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  tailscale-state:
+    driver: local
