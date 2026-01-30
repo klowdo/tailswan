@@ -68,12 +68,13 @@ func TestSSEHandler_Events_Headers(t *testing.T) {
 	req = req.WithContext(ctx)
 	rec := httptest.NewRecorder()
 
+	done := make(chan struct{})
 	go func() {
 		handler.Events(rec, req)
+		close(done)
 	}()
 
-	<-ctx.Done()
-	time.Sleep(10 * time.Millisecond)
+	<-done
 
 	expectedHeaders := map[string]string{
 		"Content-Type":                "text/event-stream",
