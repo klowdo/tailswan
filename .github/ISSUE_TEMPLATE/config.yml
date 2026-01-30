@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/klowdo/tailswan#readme
+    about: Check the README for setup and configuration guides
+  - name: Discussions
+    url: https://github.com/klowdo/tailswan/discussions
+    about: Ask questions and discuss features
