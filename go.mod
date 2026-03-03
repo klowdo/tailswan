@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	github.com/charmbracelet/fang v0.4.4
 	github.com/spf13/cobra v1.10.2
-	github.com/strongswan/govici v0.6.0
+	github.com/strongswan/govici v0.8.2
 	tailscale.com v1.78.3
 )
 
