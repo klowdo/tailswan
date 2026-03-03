@@ -11,7 +11,7 @@
 
 ARG GO_VERSION=1.25.6
 ARG ALPINE_VERSION=3.22
-ARG TAILSCALE_VERSION=v1.92.5
+ARG TAILSCALE_VERSION=v1.94.2
 
 # Base builder stage with dependencies
 FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS base-builder
