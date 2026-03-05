@@ -79,6 +79,17 @@
       "matchCurrentVersion": "!/^0/",
       "automerge": true,
       "automergeType": "pr"
+    },
+    {
+      "groupName": "go-version",
+      "matchDepNames": [
+        "go",
+        "golang"
+      ],
+      "matchManagers": [
+        "gomod",
+        "dockerfile"
+      ]
     }
   ],
   "vulnerabilityAlerts": {
