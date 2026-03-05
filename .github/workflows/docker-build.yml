@@ -92,7 +92,7 @@ jobs:
             TAILSCALE_VERSION=${{ steps.versions.outputs.tailscale-version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ startsWith(github.ref, 'refs/tags/v') && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
 
       - name: Image digest
         run: echo ${{ steps.meta.outputs.digest }}
