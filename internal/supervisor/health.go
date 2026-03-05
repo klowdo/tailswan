@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os/exec"
 
-	"tailscale.com/client/tailscale"
+	"tailscale.com/client/local"
 )
 
 func HealthCheck() error {
-	client := &tailscale.LocalClient{}
+	client := &local.Client{}
 	ctx := context.Background()
 
 	status, err := client.StatusWithoutPeers(ctx)

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/strongswan/govici/vici"
-	"tailscale.com/client/tailscale"
+	"tailscale.com/client/local"
 
 	"github.com/klowdo/tailswan/internal/models"
 )
@@ -17,13 +17,13 @@ type EventBroadcaster struct {
 	ctx             context.Context
 	clients         map[chan models.SSEMessage]bool
 	viciSession     *vici.Session
-	tailscaleClient *tailscale.LocalClient
+	tailscaleClient *local.Client
 	stateTracker    *StateTracker
 	cancel          context.CancelFunc
 	clientsMux      sync.RWMutex
 }
 
-func NewEventBroadcaster(viciSession *vici.Session, tsClient *tailscale.LocalClient) *EventBroadcaster {
+func NewEventBroadcaster(viciSession *vici.Session, tsClient *local.Client) *EventBroadcaster {
 	return &EventBroadcaster{
 		clients:         make(map[chan models.SSEMessage]bool),
 		viciSession:     viciSession,
@@ -32,7 +32,7 @@ func NewEventBroadcaster(viciSession *vici.Session, tsClient *tailscale.LocalCli
 	}
 }
 
-func (eb *EventBroadcaster) SetTailscaleClient(client *tailscale.LocalClient) {
+func (eb *EventBroadcaster) SetTailscaleClient(client *local.Client) {
 	eb.tailscaleClient = client
 }
 
