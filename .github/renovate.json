@@ -4,7 +4,9 @@
     "config:recommended",
     ":dependencyDashboard"
   ],
-  "labels": ["dependencies"],
+  "labels": [
+    "dependencies"
+  ],
   "semanticCommits": "enabled",
   "commitMessagePrefix": "chore(deps):",
   "prConcurrentLimit": 5,
@@ -16,45 +18,75 @@
   ],
   "packageRules": [
     {
-      "matchManagers": ["gomod"],
+      "matchManagers": [
+        "gomod"
+      ],
       "groupName": "tailscale",
-      "matchPackagePatterns": ["^tailscale\\.com"]
+      "matchPackageNames": [
+        "/^tailscale\\.com/"
+      ]
     },
     {
-      "matchManagers": ["gomod"],
+      "matchManagers": [
+        "gomod"
+      ],
       "groupName": "aws-sdk",
-      "matchPackagePatterns": ["^github\\.com/aws/"]
+      "matchPackageNames": [
+        "/^github\\.com/aws//"
+      ]
     },
     {
-      "matchManagers": ["gomod"],
+      "matchManagers": [
+        "gomod"
+      ],
       "groupName": "charmbracelet",
-      "matchPackagePatterns": ["^github\\.com/charmbracelet/", "^charm\\.land/"]
+      "matchPackageNames": [
+        "/^github\\.com/charmbracelet//",
+        "/^charm\\.land//"
+      ]
     },
     {
-      "matchDatasources": ["docker"],
-      "matchUpdateTypes": ["major"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "enabled": true
     },
     {
-      "matchDatasources": ["docker"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "automerge": true
     },
     {
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "groupName": "github-actions",
       "automerge": true,
       "automergeType": "pr"
     },
     {
-      "matchUpdateTypes": ["patch"],
+      "matchUpdateTypes": [
+        "patch"
+      ],
       "matchCurrentVersion": "!/^0/",
       "automerge": true,
       "automergeType": "pr"
     }
   ],
   "vulnerabilityAlerts": {
-    "labels": ["security"],
-    "assignees": ["@klowdo"]
+    "labels": [
+      "security"
+    ],
+    "assignees": [
+      "@klowdo"
+    ]
   }
 }
