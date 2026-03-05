@@ -5,32 +5,32 @@ import (
 	"net/http"
 	"sort"
 
-	"tailscale.com/client/tailscale"
+	"tailscale.com/client/local"
 
 	"github.com/klowdo/tailswan/internal/models"
 )
 
 type TailscaleHandler struct {
-	client *tailscale.LocalClient
+	client *local.Client
 }
 
 func NewTailscaleHandler() *TailscaleHandler {
 	return &TailscaleHandler{
-		client: &tailscale.LocalClient{},
+		client: &local.Client{},
 	}
 }
 
-func NewTailscaleHandlerWithClient(client *tailscale.LocalClient) *TailscaleHandler {
+func NewTailscaleHandlerWithClient(client *local.Client) *TailscaleHandler {
 	return &TailscaleHandler{
 		client: client,
 	}
 }
 
-func (h *TailscaleHandler) LocalClient() *tailscale.LocalClient {
+func (h *TailscaleHandler) LocalClient() *local.Client {
 	return h.client
 }
 
-func (h *TailscaleHandler) SetClient(client *tailscale.LocalClient) {
+func (h *TailscaleHandler) SetClient(client *local.Client) {
 	h.client = client
 }
 

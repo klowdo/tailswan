@@ -9,17 +9,17 @@ import (
 	"strings"
 	"time"
 
-	"tailscale.com/client/tailscale"
+	"tailscale.com/client/local"
 	"tailscale.com/ipn"
 )
 
 type TailscaleService struct {
-	client *tailscale.LocalClient
+	client *local.Client
 }
 
 func NewTailscaleService() *TailscaleService {
 	return &TailscaleService{
-		client: &tailscale.LocalClient{},
+		client: &local.Client{},
 	}
 }
 
