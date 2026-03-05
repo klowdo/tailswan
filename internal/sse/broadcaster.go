@@ -184,14 +184,12 @@ func (eb *EventBroadcaster) pollNodeStatus(ctx context.Context) {
 
 func (eb *EventBroadcaster) fetchSAs() map[string]interface{} {
 	msg := vici.NewMessage()
-	messages, err := eb.viciSession.StreamedCommandRequest("list-sas", "list-sa", msg)
-	if err != nil {
-		slog.Info("Error fetching SAs", "error", err)
-		return map[string]interface{}{"success": false, "sas": []map[string]interface{}{}}
-	}
-
 	var sas []map[string]interface{}
-	for _, m := range messages.Messages() {
+	for m, err := range eb.viciSession.CallStreaming(context.Background(), "list-sas", "list-sa", msg) {
+		if err != nil {
+			slog.Info("Error fetching SAs", "error", err)
+			return map[string]interface{}{"success": false, "sas": []map[string]interface{}{}}
+		}
 		saMap := make(map[string]interface{})
 		for _, key := range m.Keys() {
 			saMap[key] = m.Get(key)
@@ -236,14 +234,12 @@ func (eb *EventBroadcaster) fetchPeers() map[string]interface{} {
 
 func (eb *EventBroadcaster) fetchConnections() map[string]interface{} {
 	msg := vici.NewMessage()
-	messages, err := eb.viciSession.StreamedCommandRequest("list-conns", "list-conn", msg)
-	if err != nil {
-		slog.Info("Error fetching connections", "error", err)
-		return map[string]interface{}{"success": false, "connections": []map[string]interface{}{}}
-	}
-
 	var connections []map[string]interface{}
-	for _, m := range messages.Messages() {
+	for m, err := range eb.viciSession.CallStreaming(context.Background(), "list-conns", "list-conn", msg) {
+		if err != nil {
+			slog.Info("Error fetching connections", "error", err)
+			return map[string]interface{}{"success": false, "connections": []map[string]interface{}{}}
+		}
 		connMap := make(map[string]interface{})
 		for _, key := range m.Keys() {
 			connMap[key] = m.Get(key)
