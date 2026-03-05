@@ -27,7 +27,7 @@ type TailscaleConfig struct {
 	StateDir    string
 	Socket      string
 	Hostname    string
-	AuthKey     string
+	AuthKey     string `json:"-"`
 	Routes      []string
 	ExtraArgs   []string
 	SSH         bool
