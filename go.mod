@@ -1,12 +1,12 @@
 module github.com/klowdo/tailswan
 
-go 1.26.0
+go 1.26.1
 
 require (
 	github.com/charmbracelet/fang v0.4.4
 	github.com/spf13/cobra v1.10.2
 	github.com/strongswan/govici v0.8.2
-	tailscale.com v1.96.0
+	tailscale.com v1.96.1
 )
 
 require (
