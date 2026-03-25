@@ -6,7 +6,7 @@ require (
 	charm.land/fang/v2 v2.0.1
 	github.com/spf13/cobra v1.10.2
 	github.com/strongswan/govici v0.8.2
-	tailscale.com v1.96.3
+	tailscale.com v1.96.4
 )
 
 require (
