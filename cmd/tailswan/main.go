@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -15,6 +16,9 @@ import (
 	"github.com/klowdo/tailswan/internal/supervisor"
 	"github.com/klowdo/tailswan/internal/version"
 )
+
+//go:embed web
+var webFS embed.FS
 
 var cfg *config.Config
 
@@ -87,7 +91,7 @@ var serveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		sup := supervisor.New(&supervisorCfg)
+		sup := supervisor.New(&supervisorCfg, webFS)
 
 		if err := sup.Start(ctx); err != nil {
 			slog.Error("Supervisor start failed", "error", err)

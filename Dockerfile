@@ -14,8 +14,8 @@ ARG GO_VERSION=1.26.1
 ARG ALPINE_VERSION=3.22
 ARG TAILSCALE_VERSION=v1.96.5
 
-# Base builder stage with dependencies
-FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS base-builder
+# Build stage
+FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS builder
 
 WORKDIR /build
 
@@ -24,15 +24,7 @@ RUN go mod download && go mod verify
 
 COPY . .
 
-# Build stage for TailSwan supervisor
-FROM base-builder AS supervisor-builder
-
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /tailswan ./cmd/tailswan
-
-# Build stage for TailSwan control server
-FROM base-builder AS controlserver-builder
-
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /controlserver ./cmd/controlserver
 
 # Runtime stage - use Tailscale image as base
 ARG TAILSCALE_VERSION
@@ -49,9 +41,8 @@ RUN apk add --no-cache \
     bash \
     && rm -rf /var/cache/apk/*
 
-# Copy TailSwan binaries from builders
-COPY --from=supervisor-builder /tailswan /usr/local/bin/tailswan
-COPY --from=controlserver-builder /controlserver /usr/local/bin/controlserver
+# Copy TailSwan binary from builder
+COPY --from=builder /tailswan /usr/local/bin/tailswan
 
 # Install shell completions
 RUN mkdir -p /etc/bash_completion.d \
