@@ -14,23 +14,6 @@ import (
 	"github.com/klowdo/tailswan/internal/swan"
 )
 
-type Config struct {
-	ControlPort       string
-	TailscaleStateDir string
-	TailscaleSocket   string
-	SwanConfigPath    string
-	SwanConnections   []string
-	TailscaleConfig   TailscaleConfig
-	UseTsnet          bool
-	SwanAutoStart     bool
-}
-
-func (c *Config) ServerConfig() *config.Config {
-	return &config.Config{
-		Port: c.ControlPort,
-	}
-}
-
 type Supervisor struct {
 	ipsec      *Process
 	tailscaled *Process
@@ -39,12 +22,12 @@ type Supervisor struct {
 	srv        *server.Server
 	errors     chan error
 	webFS      embed.FS
-	config     Config
+	config     *config.Config
 }
 
-func New(cfg *Config, webFS embed.FS) *Supervisor {
+func New(cfg *config.Config, webFS embed.FS) *Supervisor {
 	return &Supervisor{
-		config:     *cfg,
+		config:     cfg,
 		ipsec:      &Process{},
 		tailscaled: &Process{},
 		tsService:  NewTailscaleService(),
@@ -60,7 +43,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	s.initSwanService()
 
-	if !s.config.UseTsnet {
+	if !s.config.Tailscale.UseTsnet {
 		if err := s.startTailscale(ctx); err != nil {
 			return err
 		}
@@ -97,8 +80,8 @@ func (s *Supervisor) initSwanService() {
 		slog.Warn("swanctl load failed", "error", loadErr)
 	}
 
-	if s.config.SwanAutoStart {
-		for _, conn := range s.config.SwanConnections {
+	if s.config.Swan.AutoStart {
+		for _, conn := range s.config.Swan.Connections {
 			if initErr := s.swanSvc.Initiate(conn); initErr != nil {
 				slog.Warn("Failed to start connection", "connection", conn, "error", initErr)
 			}
@@ -107,13 +90,13 @@ func (s *Supervisor) initSwanService() {
 }
 
 func (s *Supervisor) startTailscale(ctx context.Context) error {
-	slog.Info("Starting tailscaled",
-		"state_dir", s.config.TailscaleStateDir,
-		"socket", s.config.TailscaleSocket)
+	ts := s.config.Tailscale
+
+	slog.Info("Starting tailscaled", "state_dir", ts.StateDir, "socket", ts.Socket)
 	if err := s.tailscaled.Start(
 		"tailscaled",
-		"--state", fmt.Sprintf("%s/tailscaled.state", s.config.TailscaleStateDir),
-		"--socket", s.config.TailscaleSocket,
+		"--state", fmt.Sprintf("%s/tailscaled.state", ts.StateDir),
+		"--socket", ts.Socket,
 		"--tun", "userspace-networking",
 	); err != nil {
 		return fmt.Errorf("tailscaled start: %w", err)
@@ -129,13 +112,20 @@ func (s *Supervisor) startTailscale(ctx context.Context) error {
 	}
 
 	slog.Info("Bringing up Tailscale")
-	if err := s.tsService.Up(&s.config.TailscaleConfig); err != nil {
+	tsCfg := &TailscaleConfig{
+		Hostname:    ts.Hostname,
+		AuthKey:     ts.AuthKey,
+		Routes:      ts.Routes,
+		SSH:         ts.SSH,
+		EnableServe: ts.EnableServe,
+	}
+	if err := s.tsService.Up(tsCfg); err != nil {
 		return fmt.Errorf("tailscale up: %w", err)
 	}
 
-	if s.config.TailscaleConfig.EnableServe {
-		slog.Info("Enabling Tailscale Serve", "port", s.config.ControlPort)
-		if err := s.tsService.EnableServe(s.config.ControlPort); err != nil {
+	if ts.EnableServe {
+		slog.Info("Enabling Tailscale Serve", "port", s.config.Port)
+		if err := s.tsService.EnableServe(s.config.Port); err != nil {
 			return fmt.Errorf("tailscale serve: %w", err)
 		}
 	}
@@ -146,7 +136,7 @@ func (s *Supervisor) startTailscale(ctx context.Context) error {
 func (s *Supervisor) startServer() error {
 	tsClient := &local.Client{}
 
-	srv, err := server.New(s.config.ServerConfig(), s.webFS, s.swanSvc, tsClient)
+	srv, err := server.New(s.config, s.webFS, s.swanSvc, tsClient)
 	if err != nil {
 		return fmt.Errorf("create server: %w", err)
 	}
@@ -154,12 +144,12 @@ func (s *Supervisor) startServer() error {
 
 	go func() {
 		var serverErr error
-		if s.config.UseTsnet {
+		if s.config.Tailscale.UseTsnet {
 			slog.Info("Starting server with tsnet")
 			serverErr = s.srv.StartWithTsnet(
-				s.config.TailscaleConfig.Hostname,
-				s.config.TailscaleConfig.AuthKey,
-				s.config.TailscaleConfig.Routes,
+				s.config.Tailscale.Hostname,
+				s.config.Tailscale.AuthKey,
+				s.config.Tailscale.Routes,
 			)
 		} else {
 			serverErr = s.srv.Start()
@@ -213,7 +203,7 @@ func (s *Supervisor) monitor(ctx context.Context) {
 		errChan <- fmt.Errorf("ipsec exited: %w", err)
 	}()
 
-	if !s.config.UseTsnet {
+	if !s.config.Tailscale.UseTsnet {
 		go func() {
 			err := s.tailscaled.Wait()
 			errChan <- fmt.Errorf("tailscaled exited: %w", err)
@@ -233,7 +223,7 @@ func (s *Supervisor) printStatus() {
 	slog.Info("===========================================")
 	slog.Info("TailSwan is running")
 	slog.Info("===========================================")
-	slog.Info("Control server running", "url", fmt.Sprintf("http://localhost:%s", s.config.ControlPort))
+	slog.Info("Control server running", "url", fmt.Sprintf("http://localhost:%s", s.config.Port))
 	slog.Info("Access via Tailscale Serve (HTTP and HTTPS)")
 	slog.Info("")
 }

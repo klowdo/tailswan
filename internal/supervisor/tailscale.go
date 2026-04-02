@@ -23,12 +23,9 @@ func NewTailscaleService() *TailscaleService {
 }
 
 type TailscaleConfig struct {
-	StateDir    string
-	Socket      string
 	Hostname    string
 	AuthKey     string `json:"-"`
 	Routes      []string
-	ExtraArgs   []string
 	SSH         bool
 	EnableServe bool
 }

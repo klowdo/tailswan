@@ -66,32 +66,12 @@ var serveCmd = &cobra.Command{
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 
-		supervisorCfg := supervisor.Config{
-			ControlPort:       cfg.Port,
-			TailscaleStateDir: cfg.Tailscale.StateDir,
-			TailscaleSocket:   cfg.Tailscale.Socket,
-			UseTsnet:          cfg.Tailscale.UseTsnet,
-			TailscaleConfig: supervisor.TailscaleConfig{
-				StateDir:    cfg.Tailscale.StateDir,
-				Socket:      cfg.Tailscale.Socket,
-				Hostname:    cfg.Tailscale.Hostname,
-				AuthKey:     cfg.Tailscale.AuthKey,
-				Routes:      cfg.Tailscale.Routes,
-				SSH:         cfg.Tailscale.SSH,
-				ExtraArgs:   cfg.Tailscale.ExtraArgs,
-				EnableServe: cfg.Tailscale.EnableServe,
-			},
-			SwanConfigPath:  cfg.Swan.ConfigPath,
-			SwanAutoStart:   cfg.Swan.AutoStart,
-			SwanConnections: cfg.Swan.Connections,
-		}
-
 		if err := supervisor.SetupSystem(); err != nil {
 			slog.Error("System setup failed", "error", err)
 			os.Exit(1)
 		}
 
-		sup := supervisor.New(&supervisorCfg, webFS)
+		sup := supervisor.New(cfg, webFS)
 
 		if err := sup.Start(ctx); err != nil {
 			slog.Error("Supervisor start failed", "error", err)
