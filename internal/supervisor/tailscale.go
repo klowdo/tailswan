@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
-	"os/exec"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -48,7 +47,7 @@ func (ts *TailscaleService) WaitReady(ctx context.Context) error {
 
 			_, err := ts.client.Status(ctx)
 			if err == nil {
-				slog.Info("✓ Tailscaled is ready")
+				slog.Info("Tailscaled is ready")
 				return nil
 			}
 
@@ -60,43 +59,38 @@ func (ts *TailscaleService) WaitReady(ctx context.Context) error {
 }
 
 func (ts *TailscaleService) Up(cfg *TailscaleConfig) error {
-	args := []string{
-		"up",
-		"--hostname=" + cfg.Hostname,
-		"--accept-routes",
-		"--accept-dns=false",
-		"--advertise-exit-node=false",
+	ctx := context.Background()
+
+	routes, err := parseRoutes(cfg.Routes)
+	if err != nil {
+		return fmt.Errorf("parse routes: %w", err)
 	}
 
-	if cfg.AuthKey != "" {
-		args = append(args, "--authkey="+cfg.AuthKey)
+	prefs := &ipn.Prefs{
+		WantRunning:     true,
+		Hostname:        cfg.Hostname,
+		RouteAll:        true,
+		CorpDNS:         false,
+		AdvertiseRoutes: routes,
+		RunSSH:          cfg.SSH,
 	}
 
-	if len(cfg.Routes) > 0 {
-		routes := strings.Join(cfg.Routes, ",")
-		args = append(args, "--advertise-routes="+routes)
-		slog.Info("Advertising routes", "routes", routes)
-	} else {
-		args = append(args, "--advertise-routes=")
+	if len(routes) > 0 {
+		slog.Info("Advertising routes", "routes", strings.Join(cfg.Routes, ","))
 	}
-
 	if cfg.SSH {
-		args = append(args, "--ssh")
 		slog.Info("Enabling Tailscale SSH")
-	} else {
-		args = append(args, "--ssh=false")
 	}
 
-	args = append(args, cfg.ExtraArgs...)
+	opts := ipn.Options{
+		UpdatePrefs: prefs,
+		AuthKey:     cfg.AuthKey,
+	}
 
-	slog.Info("Bringing up Tailscale", "command", "tailscale "+strings.Join(args, " "))
+	slog.Info("Bringing up Tailscale", "hostname", cfg.Hostname)
 
-	cmd := exec.Command("tailscale", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("tailscale up failed: %w", err)
+	if err := ts.client.Start(ctx, opts); err != nil {
+		return fmt.Errorf("tailscale start failed: %w", err)
 	}
 
 	return nil
@@ -140,7 +134,7 @@ func (ts *TailscaleService) EnableServe(port string) error {
 		return fmt.Errorf("failed to set serve config: %w", setErr)
 	}
 
-	slog.Info("✓ Control server available via Tailscale Serve", "url", "https://"+hostname)
+	slog.Info("Control server available via Tailscale Serve", "url", "https://"+hostname)
 
 	serveStatus, err := ts.client.GetServeConfig(ctx)
 	if err == nil && serveStatus != nil {
@@ -148,4 +142,24 @@ func (ts *TailscaleService) EnableServe(port string) error {
 	}
 
 	return nil
+}
+
+func parseRoutes(routes []string) ([]netip.Prefix, error) {
+	if len(routes) == 0 {
+		return nil, nil
+	}
+
+	prefixes := make([]netip.Prefix, 0, len(routes))
+	for _, r := range routes {
+		r = strings.TrimSpace(r)
+		if r == "" {
+			continue
+		}
+		prefix, err := netip.ParsePrefix(r)
+		if err != nil {
+			return nil, fmt.Errorf("invalid route %q: %w", r, err)
+		}
+		prefixes = append(prefixes, prefix)
+	}
+	return prefixes, nil
 }
