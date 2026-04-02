@@ -9,7 +9,8 @@
 # Example:
 #   docker build --build-arg GO_VERSION=1.25.5 --build-arg TAILSCALE_VERSION=v1.92.5 .
 
-ARG GO_VERSION=1.25.6
+# renovate: datasource=golang-version depName=go
+ARG GO_VERSION=1.26.1
 ARG ALPINE_VERSION=3.22
 ARG TAILSCALE_VERSION=v1.94.2
 

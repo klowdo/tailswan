@@ -81,11 +81,13 @@ func (s *Supervisor) initSwanService() {
 	}
 
 	if s.config.Swan.AutoStart {
-		for _, conn := range s.config.Swan.Connections {
-			if initErr := s.swanSvc.Initiate(conn); initErr != nil {
-				slog.Warn("Failed to start connection", "connection", conn, "error", initErr)
+		go func() {
+			for _, conn := range s.config.Swan.Connections {
+				if initErr := s.swanSvc.Initiate(conn); initErr != nil {
+					slog.Warn("Failed to start connection", "connection", conn, "error", initErr)
+				}
 			}
-		}
+		}()
 	}
 }
 
