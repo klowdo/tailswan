@@ -6,6 +6,8 @@ import (
 	"os/exec"
 
 	"tailscale.com/client/local"
+
+	"github.com/klowdo/tailswan/internal/swan"
 )
 
 func HealthCheck() error {
@@ -30,12 +32,17 @@ func HealthCheck() error {
 		return fmt.Errorf("tailscale health issues: %s", problems)
 	}
 
-	cmd := exec.Command("swanctl", "--version")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("swanctl not responding: %w", err)
+	svc, err := swan.NewService()
+	if err != nil {
+		return fmt.Errorf("VICI not responding: %w", err)
+	}
+	defer svc.Close() //nolint:errcheck // best-effort cleanup
+
+	if err := svc.Version(); err != nil {
+		return fmt.Errorf("strongSwan not responding: %w", err)
 	}
 
-	cmd = exec.Command("pgrep", "-x", "charon")
+	cmd := exec.Command("pgrep", "-x", "charon")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("charon process not found: %w", err)
 	}
