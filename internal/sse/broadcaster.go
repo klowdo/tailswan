@@ -13,6 +13,13 @@ import (
 	"github.com/klowdo/tailswan/internal/swan"
 )
 
+type poller struct {
+	Fetch    func() (any, error)
+	Name     string
+	Event    string
+	Interval time.Duration
+}
+
 type EventBroadcaster struct {
 	ctx             context.Context
 	clients         map[chan models.SSEMessage]bool
@@ -39,10 +46,16 @@ func (eb *EventBroadcaster) SetTailscaleClient(client *local.Client) {
 func (eb *EventBroadcaster) Start(ctx context.Context) {
 	eb.ctx, eb.cancel = context.WithCancel(ctx)
 
-	go eb.pollSAs(eb.ctx)
-	go eb.pollPeers(eb.ctx)
-	go eb.pollConnections(eb.ctx)
-	go eb.pollNodeStatus(eb.ctx)
+	pollers := []poller{
+		{Name: "sas", Event: "sa-update", Interval: 5 * time.Second, Fetch: eb.fetchSAs},
+		{Name: "peers", Event: "peer-update", Interval: 10 * time.Second, Fetch: eb.fetchPeers},
+		{Name: "connections", Event: "connection-update", Interval: 30 * time.Second, Fetch: eb.fetchConnections},
+		{Name: "node", Event: "node-update", Interval: 30 * time.Second, Fetch: eb.fetchNodeStatus},
+	}
+
+	for _, p := range pollers {
+		go eb.poll(eb.ctx, p)
+	}
 
 	<-eb.ctx.Done()
 }
@@ -90,8 +103,8 @@ func (eb *EventBroadcaster) broadcast(msg models.SSEMessage) {
 	}
 }
 
-func (eb *EventBroadcaster) pollSAs(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
+func (eb *EventBroadcaster) poll(ctx context.Context, p poller) {
+	ticker := time.NewTicker(p.Interval)
 	defer ticker.Stop()
 
 	for {
@@ -99,104 +112,36 @@ func (eb *EventBroadcaster) pollSAs(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			sas := eb.fetchSAs()
-			if eb.stateTracker.HasChanged("sas", sas) {
-				data, err := json.Marshal(sas)
-				if err == nil {
-					eb.broadcast(models.SSEMessage{
-						Event: "sa-update",
-						Data:  data,
-					})
+			result, err := p.Fetch()
+			if err != nil {
+				continue
+			}
+			if eb.stateTracker.HasChanged(p.Name, result) {
+				data, marshalErr := json.Marshal(result)
+				if marshalErr != nil {
+					continue
 				}
+				eb.broadcast(models.SSEMessage{Event: p.Event, Data: data})
 			}
 		}
 	}
 }
 
-func (eb *EventBroadcaster) pollPeers(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			peers := eb.fetchPeers()
-			if eb.stateTracker.HasChanged("peers", peers) {
-				data, err := json.Marshal(peers)
-				if err == nil {
-					eb.broadcast(models.SSEMessage{
-						Event: "peer-update",
-						Data:  data,
-					})
-				}
-			}
-		}
-	}
-}
-
-func (eb *EventBroadcaster) pollConnections(ctx context.Context) {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			connections := eb.fetchConnections()
-			if eb.stateTracker.HasChanged("connections", connections) {
-				data, err := json.Marshal(connections)
-				if err == nil {
-					eb.broadcast(models.SSEMessage{
-						Event: "connection-update",
-						Data:  data,
-					})
-				}
-			}
-		}
-	}
-}
-
-func (eb *EventBroadcaster) pollNodeStatus(ctx context.Context) {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			status := eb.fetchNodeStatus()
-			if eb.stateTracker.HasChanged("node", status) {
-				data, err := json.Marshal(status)
-				if err == nil {
-					eb.broadcast(models.SSEMessage{
-						Event: "node-update",
-						Data:  data,
-					})
-				}
-			}
-		}
-	}
-}
-
-func (eb *EventBroadcaster) fetchSAs() map[string]any {
+func (eb *EventBroadcaster) fetchSAs() (any, error) {
 	sas, err := eb.swanSvc.ListSAs()
 	if err != nil {
 		slog.Info("Error fetching SAs", "error", err)
-		return map[string]any{"success": false, "sas": []map[string]any{}}
+		return map[string]any{"success": false, "sas": []map[string]any{}}, nil
 	}
-	return map[string]any{"success": true, "sas": sas}
+	return map[string]any{"success": true, "sas": sas}, nil
 }
 
-func (eb *EventBroadcaster) fetchPeers() map[string]any {
+func (eb *EventBroadcaster) fetchPeers() (any, error) {
 	ctx := context.Background()
 	status, err := eb.tailscaleClient.Status(ctx)
 	if err != nil {
 		slog.Info("Error fetching peers", "error", err)
-		return map[string]any{"success": false, "peers": []map[string]any{}}
+		return map[string]any{"success": false, "peers": []map[string]any{}}, nil
 	}
 
 	var peers []map[string]any
@@ -217,24 +162,24 @@ func (eb *EventBroadcaster) fetchPeers() map[string]any {
 		"success": true,
 		"peers":   peers,
 		"self":    status.Self,
-	}
+	}, nil
 }
 
-func (eb *EventBroadcaster) fetchConnections() map[string]any {
+func (eb *EventBroadcaster) fetchConnections() (any, error) {
 	connections, err := eb.swanSvc.ListConnections()
 	if err != nil {
 		slog.Info("Error fetching connections", "error", err)
-		return map[string]any{"success": false, "connections": []map[string]any{}}
+		return map[string]any{"success": false, "connections": []map[string]any{}}, nil
 	}
-	return map[string]any{"success": true, "connections": connections}
+	return map[string]any{"success": true, "connections": connections}, nil
 }
 
-func (eb *EventBroadcaster) fetchNodeStatus() map[string]any {
+func (eb *EventBroadcaster) fetchNodeStatus() (any, error) {
 	ctx := context.Background()
 	status, err := eb.tailscaleClient.Status(ctx)
 	if err != nil {
 		slog.Info("Error fetching node status", "error", err)
-		return map[string]any{"success": false}
+		return map[string]any{"success": false}, nil
 	}
 
 	return map[string]any{
@@ -243,5 +188,5 @@ func (eb *EventBroadcaster) fetchNodeStatus() map[string]any {
 			"BackendState": status.BackendState,
 			"Self":         status.Self,
 		},
-	}
+	}, nil
 }
