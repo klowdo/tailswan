@@ -7,9 +7,11 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"tailscale.com/client/local"
 
 	"github.com/klowdo/tailswan/internal/config"
 	"github.com/klowdo/tailswan/internal/server"
+	"github.com/klowdo/tailswan/internal/swan"
 )
 
 //go:embed web
@@ -33,7 +35,16 @@ var rootCmd = &cobra.Command{
 		initLogger(cfg)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		srv, err := server.New(cfg, webFS)
+		swanSvc, err := swan.NewService()
+		if err != nil {
+			slog.Error("Failed to create swan service", "error", err)
+			os.Exit(1)
+		}
+		defer swanSvc.Close() //nolint:errcheck // best-effort cleanup
+
+		tsClient := &local.Client{}
+
+		srv, err := server.New(cfg, webFS, swanSvc, tsClient)
 		if err != nil {
 			slog.Error("Failed to create server", "error", err)
 			os.Exit(1)

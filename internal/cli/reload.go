@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/klowdo/tailswan/internal/supervisor"
+	"github.com/klowdo/tailswan/internal/swan"
 )
 
 func NewReloadCmd() *cobra.Command {
@@ -13,8 +13,13 @@ func NewReloadCmd() *cobra.Command {
 		Use:   "reload",
 		Short: "Reload strongSwan configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			sw := &supervisor.SwanService{}
-			if err := sw.Reload(); err != nil {
+			svc, err := swan.NewService()
+			if err != nil {
+				return fmt.Errorf("VICI connection failed: %w", err)
+			}
+			defer svc.Close() //nolint:errcheck // best-effort cleanup
+
+			if err := svc.LoadAll(); err != nil {
 				return fmt.Errorf("failed to reload configuration: %w", err)
 			}
 			if _, err := fmt.Fprintln(cmd.OutOrStdout(), "Configuration reloaded"); err != nil {

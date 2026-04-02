@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
+	"github.com/klowdo/tailswan/internal/swan"
 )
 
 type Config struct {
@@ -19,24 +21,23 @@ type Config struct {
 }
 
 type Supervisor struct {
-	ipsec       *Process
-	tailscaled  *Process
-	server      *Process
-	tsService   *TailscaleService
-	swanService *SwanService
-	errors      chan error
-	config      Config
+	ipsec      *Process
+	tailscaled *Process
+	server     *Process
+	tsService  *TailscaleService
+	swanSvc    *swan.Service
+	errors     chan error
+	config     Config
 }
 
 func New(cfg *Config) *Supervisor {
 	return &Supervisor{
-		config:      *cfg,
-		ipsec:       &Process{},
-		tailscaled:  &Process{},
-		server:      &Process{},
-		tsService:   NewTailscaleService(),
-		swanService: &SwanService{},
-		errors:      make(chan error, 1),
+		config:     *cfg,
+		ipsec:      &Process{},
+		tailscaled: &Process{},
+		server:     &Process{},
+		tsService:  NewTailscaleService(),
+		errors:     make(chan error, 1),
 	}
 }
 
@@ -47,14 +48,20 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}
 	time.Sleep(2 * time.Second)
 
-	if err := s.swanService.LoadConfig(s.config.SwanConfigPath); err != nil {
-		slog.Warn("swanctl load failed", "error", err)
-	}
+	svc, err := swan.NewService()
+	if err != nil {
+		slog.Warn("VICI connection failed", "error", err)
+	} else {
+		s.swanSvc = svc
+		if err := s.swanSvc.LoadAll(); err != nil {
+			slog.Warn("swanctl load failed", "error", err)
+		}
 
-	if s.config.SwanAutoStart {
-		for _, conn := range s.config.SwanConnections {
-			if err := s.swanService.Initiate(conn); err != nil {
-				slog.Warn("Failed to start connection", "connection", conn, "error", err)
+		if s.config.SwanAutoStart {
+			for _, conn := range s.config.SwanConnections {
+				if err := s.swanSvc.Initiate(conn); err != nil {
+					slog.Warn("Failed to start connection", "connection", conn, "error", err)
+				}
 			}
 		}
 	}
@@ -79,7 +86,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		); err != nil {
 			return fmt.Errorf("tailscaled start: %w", err)
 		}
-		slog.Info("✓ tailscaled process started")
+		slog.Info("tailscaled process started")
 
 		slog.Info("Waiting for tailscaled to be ready")
 		readyCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
@@ -127,6 +134,12 @@ func (s *Supervisor) Stop() {
 	if s.ipsec != nil {
 		if err := s.ipsec.Kill(); err != nil {
 			slog.Error("Failed to kill ipsec", "error", err)
+		}
+	}
+
+	if s.swanSvc != nil {
+		if err := s.swanSvc.Close(); err != nil {
+			slog.Error("Failed to close VICI session", "error", err)
 		}
 	}
 

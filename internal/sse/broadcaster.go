@@ -7,26 +7,26 @@ import (
 	"sync"
 	"time"
 
-	"github.com/strongswan/govici/vici"
 	"tailscale.com/client/local"
 
 	"github.com/klowdo/tailswan/internal/models"
+	"github.com/klowdo/tailswan/internal/swan"
 )
 
 type EventBroadcaster struct {
 	ctx             context.Context
 	clients         map[chan models.SSEMessage]bool
-	viciSession     *vici.Session
+	swanSvc         *swan.Service
 	tailscaleClient *local.Client
 	stateTracker    *StateTracker
 	cancel          context.CancelFunc
 	clientsMux      sync.RWMutex
 }
 
-func NewEventBroadcaster(viciSession *vici.Session, tsClient *local.Client) *EventBroadcaster {
+func NewEventBroadcaster(swanSvc *swan.Service, tsClient *local.Client) *EventBroadcaster {
 	return &EventBroadcaster{
 		clients:         make(map[chan models.SSEMessage]bool),
-		viciSession:     viciSession,
+		swanSvc:         swanSvc,
 		tailscaleClient: tsClient,
 		stateTracker:    NewStateTracker(),
 	}
@@ -182,38 +182,26 @@ func (eb *EventBroadcaster) pollNodeStatus(ctx context.Context) {
 	}
 }
 
-func (eb *EventBroadcaster) fetchSAs() map[string]interface{} {
-	msg := vici.NewMessage()
-	var sas []map[string]interface{}
-	for m, err := range eb.viciSession.CallStreaming(context.Background(), "list-sas", "list-sa", msg) {
-		if err != nil {
-			slog.Info("Error fetching SAs", "error", err)
-			return map[string]interface{}{"success": false, "sas": []map[string]interface{}{}}
-		}
-		saMap := make(map[string]interface{})
-		for _, key := range m.Keys() {
-			saMap[key] = m.Get(key)
-		}
-		sas = append(sas, saMap)
+func (eb *EventBroadcaster) fetchSAs() map[string]any {
+	sas, err := eb.swanSvc.ListSAs()
+	if err != nil {
+		slog.Info("Error fetching SAs", "error", err)
+		return map[string]any{"success": false, "sas": []map[string]any{}}
 	}
-
-	return map[string]interface{}{
-		"success": true,
-		"sas":     sas,
-	}
+	return map[string]any{"success": true, "sas": sas}
 }
 
-func (eb *EventBroadcaster) fetchPeers() map[string]interface{} {
+func (eb *EventBroadcaster) fetchPeers() map[string]any {
 	ctx := context.Background()
 	status, err := eb.tailscaleClient.Status(ctx)
 	if err != nil {
 		slog.Info("Error fetching peers", "error", err)
-		return map[string]interface{}{"success": false, "peers": []map[string]interface{}{}}
+		return map[string]any{"success": false, "peers": []map[string]any{}}
 	}
 
-	var peers []map[string]interface{}
+	var peers []map[string]any
 	for _, peer := range status.Peer {
-		peerInfo := map[string]interface{}{
+		peerInfo := map[string]any{
 			"id":            peer.ID,
 			"hostname":      peer.HostName,
 			"dns_name":      peer.DNSName,
@@ -225,45 +213,33 @@ func (eb *EventBroadcaster) fetchPeers() map[string]interface{} {
 		peers = append(peers, peerInfo)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"success": true,
 		"peers":   peers,
 		"self":    status.Self,
 	}
 }
 
-func (eb *EventBroadcaster) fetchConnections() map[string]interface{} {
-	msg := vici.NewMessage()
-	var connections []map[string]interface{}
-	for m, err := range eb.viciSession.CallStreaming(context.Background(), "list-conns", "list-conn", msg) {
-		if err != nil {
-			slog.Info("Error fetching connections", "error", err)
-			return map[string]interface{}{"success": false, "connections": []map[string]interface{}{}}
-		}
-		connMap := make(map[string]interface{})
-		for _, key := range m.Keys() {
-			connMap[key] = m.Get(key)
-		}
-		connections = append(connections, connMap)
+func (eb *EventBroadcaster) fetchConnections() map[string]any {
+	connections, err := eb.swanSvc.ListConnections()
+	if err != nil {
+		slog.Info("Error fetching connections", "error", err)
+		return map[string]any{"success": false, "connections": []map[string]any{}}
 	}
-
-	return map[string]interface{}{
-		"success":     true,
-		"connections": connections,
-	}
+	return map[string]any{"success": true, "connections": connections}
 }
 
-func (eb *EventBroadcaster) fetchNodeStatus() map[string]interface{} {
+func (eb *EventBroadcaster) fetchNodeStatus() map[string]any {
 	ctx := context.Background()
 	status, err := eb.tailscaleClient.Status(ctx)
 	if err != nil {
 		slog.Info("Error fetching node status", "error", err)
-		return map[string]interface{}{"success": false}
+		return map[string]any{"success": false}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"success": true,
-		"status": map[string]interface{}{
+		"status": map[string]any{
 			"BackendState": status.BackendState,
 			"Self":         status.Self,
 		},

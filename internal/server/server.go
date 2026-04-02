@@ -11,12 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"tailscale.com/client/local"
 	"tailscale.com/tsnet"
 
 	"github.com/klowdo/tailswan/internal/config"
 	"github.com/klowdo/tailswan/internal/handlers"
 	"github.com/klowdo/tailswan/internal/routes"
 	"github.com/klowdo/tailswan/internal/sse"
+	"github.com/klowdo/tailswan/internal/swan"
 )
 
 type Server struct {
@@ -31,16 +33,12 @@ type Server struct {
 	tsnetListener net.Listener
 }
 
-func New(cfg *config.Config, webFS embed.FS) (*Server, error) {
-	viciHandler, err := handlers.NewVICIHandler()
-	if err != nil {
-		return nil, err
-	}
-
-	tsHandler := handlers.NewTailscaleHandler()
+func New(cfg *config.Config, webFS embed.FS, swanSvc *swan.Service, tsClient *local.Client) (*Server, error) {
+	viciHandler := handlers.NewVICIHandler(swanSvc)
+	tsHandler := handlers.NewTailscaleHandlerWithClient(tsClient)
 	healthHandler := handlers.NewHealthHandler()
 
-	broadcaster := sse.NewEventBroadcaster(viciHandler.Session(), tsHandler.LocalClient())
+	broadcaster := sse.NewEventBroadcaster(swanSvc, tsClient)
 	sseHandler := handlers.NewSSEHandler(broadcaster)
 
 	mux := http.NewServeMux()
@@ -240,11 +238,5 @@ func (s *Server) Close() {
 
 	if s.broadcaster != nil {
 		s.broadcaster.Stop()
-	}
-
-	if s.viciHandler != nil {
-		if err := s.viciHandler.Close(); err != nil {
-			slog.Error("Failed to close VICI handler", "error", err)
-		}
 	}
 }

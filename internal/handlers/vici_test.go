@@ -276,17 +276,9 @@ func TestVICIHandler_ListSAs_MethodNotAllowed(t *testing.T) {
 	}
 }
 
-func TestVICIHandler_Close_NilSession(t *testing.T) {
-	handler := &VICIHandler{session: nil}
-	err := handler.Close()
-	if err != nil {
-		t.Errorf("expected nil error for nil session, got %v", err)
-	}
-}
-
-func TestVICIHandler_Session(t *testing.T) {
-	handler := &VICIHandler{session: nil}
-	if handler.Session() != nil {
-		t.Error("expected nil session")
+func TestVICIHandler_NilSwanService(t *testing.T) {
+	handler := NewVICIHandler(nil)
+	if handler.SwanService() != nil {
+		t.Error("expected nil swan service")
 	}
 }
