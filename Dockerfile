@@ -12,7 +12,7 @@
 # renovate: datasource=golang-version depName=go
 ARG GO_VERSION=1.26.1
 ARG ALPINE_VERSION=3.22
-ARG TAILSCALE_VERSION=v1.94.2
+ARG TAILSCALE_VERSION=v1.96.5
 
 # Base builder stage with dependencies
 FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS base-builder
