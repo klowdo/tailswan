@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/klowdo/tailswan/compare/v0.1.1...v0.1.2) (2026-04-15)
+
+
+### Bug Fixes
+
+* pass --reset to tailscale up to clear stale state ([f85d8e6](https://github.com/klowdo/tailswan/commit/f85d8e69c656c42430b22de46bf1911c91942ab0))
+
 ## [0.1.1](https://github.com/klowdo/tailswan/compare/v0.1.0...v0.1.1) (2026-04-15)
 
 
