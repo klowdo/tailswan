@@ -62,6 +62,7 @@ func (ts *TailscaleService) WaitReady(ctx context.Context) error {
 func (ts *TailscaleService) Up(cfg *TailscaleConfig) error {
 	args := []string{
 		"up",
+		"--reset",
 		"--hostname=" + cfg.Hostname,
 		"--accept-routes",
 		"--accept-dns=false",
