@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const DefaultVersion = "0.1.2" // x-release-please-version
+const DefaultVersion = "0.1.3" // x-release-please-version
 
 func Get() string {
 	info, ok := debug.ReadBuildInfo()

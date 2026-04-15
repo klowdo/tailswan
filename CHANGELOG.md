@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/klowdo/tailswan/compare/v0.1.2...v0.1.3) (2026-04-15)
+
+
+### Bug Fixes
+
+* **ci:** coerce inputs.push to literal boolean for build-push-action ([968a574](https://github.com/klowdo/tailswan/commit/968a574ceb91c6aee299651936c9166f4cfd70c2))
+* **ci:** trigger docker push from release-please via workflow_call ([4c19a49](https://github.com/klowdo/tailswan/commit/4c19a490e4b8869813d41fdd96e15f1c5869c286))
+
 ## [0.1.2](https://github.com/klowdo/tailswan/compare/v0.1.1...v0.1.2) (2026-04-15)
 
 
