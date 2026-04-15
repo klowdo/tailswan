@@ -76,8 +76,8 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          push: ${{ inputs.push }}
-          load: ${{ !inputs.push }}
+          push: ${{ inputs.push == true }}
+          load: ${{ inputs.push != true }}
           provenance: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
