@@ -30,14 +30,8 @@ func HealthCheck() error {
 		return fmt.Errorf("tailscale health issues: %s", problems)
 	}
 
-	cmd := exec.Command("swanctl", "--version")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("swanctl not responding: %w", err)
-	}
-
-	cmd = exec.Command("pgrep", "-x", "charon")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("charon process not found: %w", err)
+	if err := exec.Command("swanctl", "--stats").Run(); err != nil {
+		return fmt.Errorf("charon not responding via vici: %w", err)
 	}
 
 	return nil
