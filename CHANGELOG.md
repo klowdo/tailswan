@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/klowdo/tailswan/compare/v0.1.3...v0.1.4) (2026-04-20)
+
+
+### Bug Fixes
+
+* show configured connections in UI when VICI list is empty ([da12cb5](https://github.com/klowdo/tailswan/commit/da12cb570ed5ca41f54ad3f795b3b097159d12d1))
+
 ## [0.1.3](https://github.com/klowdo/tailswan/compare/v0.1.2...v0.1.3) (2026-04-15)
 
 
