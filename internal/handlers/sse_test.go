@@ -40,7 +40,7 @@ func TestSSEHandler_Events_MethodNotAllowed(t *testing.T) {
 		},
 	}
 
-	broadcaster := sse.NewEventBroadcaster(nil, nil)
+	broadcaster := sse.NewEventBroadcaster(nil, nil, nil)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -58,7 +58,7 @@ func TestSSEHandler_Events_MethodNotAllowed(t *testing.T) {
 }
 
 func TestSSEHandler_Events_Headers(t *testing.T) {
-	broadcaster := sse.NewEventBroadcaster(nil, nil)
+	broadcaster := sse.NewEventBroadcaster(nil, nil, nil)
 	handler := NewSSEHandler(broadcaster)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -92,7 +92,7 @@ func TestSSEHandler_Events_Headers(t *testing.T) {
 }
 
 func TestSSEHandler_Events_ReceivesMessage(t *testing.T) {
-	broadcaster := sse.NewEventBroadcaster(nil, nil)
+	broadcaster := sse.NewEventBroadcaster(nil, nil, nil)
 	handler := NewSSEHandler(broadcaster)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
@@ -134,7 +134,7 @@ func TestSSEHandler_Events_ReceivesMessage(t *testing.T) {
 }
 
 func TestNewSSEHandler(t *testing.T) {
-	broadcaster := sse.NewEventBroadcaster(nil, nil)
+	broadcaster := sse.NewEventBroadcaster(nil, nil, nil)
 	handler := NewSSEHandler(broadcaster)
 	if handler == nil {
 		t.Error("expected non-nil handler")
