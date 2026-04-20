@@ -11,6 +11,7 @@ import (
 	"tailscale.com/client/local"
 
 	"github.com/klowdo/tailswan/internal/models"
+	"github.com/klowdo/tailswan/internal/viciconn"
 )
 
 type EventBroadcaster struct {
@@ -20,15 +21,17 @@ type EventBroadcaster struct {
 	tailscaleClient *local.Client
 	stateTracker    *StateTracker
 	cancel          context.CancelFunc
+	configuredConns []string
 	clientsMux      sync.RWMutex
 }
 
-func NewEventBroadcaster(viciSession *vici.Session, tsClient *local.Client) *EventBroadcaster {
+func NewEventBroadcaster(viciSession *vici.Session, tsClient *local.Client, configured []string) *EventBroadcaster {
 	return &EventBroadcaster{
 		clients:         make(map[chan models.SSEMessage]bool),
 		viciSession:     viciSession,
 		tailscaleClient: tsClient,
 		stateTracker:    NewStateTracker(),
+		configuredConns: configured,
 	}
 }
 
@@ -233,23 +236,9 @@ func (eb *EventBroadcaster) fetchPeers() map[string]interface{} {
 }
 
 func (eb *EventBroadcaster) fetchConnections() map[string]interface{} {
-	msg := vici.NewMessage()
-	var connections []map[string]interface{}
-	for m, err := range eb.viciSession.CallStreaming(context.Background(), "list-conns", "list-conn", msg) {
-		if err != nil {
-			slog.Info("Error fetching connections", "error", err)
-			return map[string]interface{}{"success": false, "connections": []map[string]interface{}{}}
-		}
-		connMap := make(map[string]interface{})
-		for _, key := range m.Keys() {
-			connMap[key] = m.Get(key)
-		}
-		connections = append(connections, connMap)
-	}
-
 	return map[string]interface{}{
 		"success":     true,
-		"connections": connections,
+		"connections": viciconn.Build(eb.viciSession, eb.configuredConns),
 	}
 }
 

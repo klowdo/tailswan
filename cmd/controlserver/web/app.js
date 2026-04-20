@@ -114,7 +114,11 @@ function tailswanApp() {
                 const connName = Object.keys(conn)[0] || `connection-${index}`;
                 const connData = conn[connName];
 
+                const loaded = connData?.loaded !== false;
                 const details = [];
+                if (!loaded) {
+                    details.push('Not loaded in strongSwan');
+                }
                 if (connData?.local_addrs) {
                     details.push(`Local: ${Array.isArray(connData.local_addrs) ? connData.local_addrs.join(', ') : connData.local_addrs}`);
                 }
@@ -127,6 +131,7 @@ function tailswanApp() {
 
                 return {
                     name: connName,
+                    loaded: loaded,
                     details: details.length > 0 ? details.join(' • ') : 'Connection configured'
                 };
             });

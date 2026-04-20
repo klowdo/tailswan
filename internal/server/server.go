@@ -32,7 +32,7 @@ type Server struct {
 }
 
 func New(cfg *config.Config, webFS embed.FS) (*Server, error) {
-	viciHandler, err := handlers.NewVICIHandler()
+	viciHandler, err := handlers.NewVICIHandler(cfg.Swan.Connections)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func New(cfg *config.Config, webFS embed.FS) (*Server, error) {
 	tsHandler := handlers.NewTailscaleHandler()
 	healthHandler := handlers.NewHealthHandler()
 
-	broadcaster := sse.NewEventBroadcaster(viciHandler.Session(), tsHandler.LocalClient())
+	broadcaster := sse.NewEventBroadcaster(viciHandler.Session(), tsHandler.LocalClient(), cfg.Swan.Connections)
 	sseHandler := handlers.NewSSEHandler(broadcaster)
 
 	mux := http.NewServeMux()

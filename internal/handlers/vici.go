@@ -9,20 +9,23 @@ import (
 	"github.com/strongswan/govici/vici"
 
 	"github.com/klowdo/tailswan/internal/models"
+	"github.com/klowdo/tailswan/internal/viciconn"
 )
 
 type VICIHandler struct {
-	session *vici.Session
+	session         *vici.Session
+	configuredConns []string
 }
 
-func NewVICIHandler() (*VICIHandler, error) {
+func NewVICIHandler(configured []string) (*VICIHandler, error) {
 	session, err := vici.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VICI session: %w", err)
 	}
 
 	return &VICIHandler{
-		session: session,
+		session:         session,
+		configuredConns: configured,
 	}, nil
 }
 
@@ -145,27 +148,9 @@ func (h *VICIHandler) ListConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := vici.NewMessage()
-	connections := make([]map[string]interface{}, 0)
-	for m, err := range h.session.CallStreaming(context.Background(), "list-conns", "list-conn", msg) {
-		if err != nil {
-			respondJSON(w, http.StatusInternalServerError, models.Response{
-				Success: false,
-				Message: "Failed to list connections",
-				Error:   err.Error(),
-			})
-			return
-		}
-		connMap := make(map[string]interface{})
-		for _, key := range m.Keys() {
-			connMap[key] = m.Get(key)
-		}
-		connections = append(connections, connMap)
-	}
-
 	respondJSON(w, http.StatusOK, models.ConnectionsResponse{
 		Success:     true,
-		Connections: connections,
+		Connections: viciconn.Build(h.session, h.configuredConns),
 	})
 }
 
