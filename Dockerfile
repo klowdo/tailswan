@@ -3,7 +3,7 @@
 #
 # Build arguments:
 #   GO_VERSION        - Go version for build stages (default: 1.25.6)
-#   ALPINE_VERSION    - Alpine Linux version (default: 3.22)
+#   ALPINE_VERSION    - Alpine Linux version (default: 3.23)
 #   TAILSCALE_VERSION - Tailscale version tag (default: latest)
 #
 # Example:
@@ -11,7 +11,7 @@
 
 # renovate: datasource=golang-version depName=go
 ARG GO_VERSION=1.26.1
-ARG ALPINE_VERSION=3.22
+ARG ALPINE_VERSION=3.23
 ARG TAILSCALE_VERSION=v1.102.5
 
 # Base builder stage with dependencies
