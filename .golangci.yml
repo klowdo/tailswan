@@ -36,6 +36,11 @@ linters:
     - gosec
   disable:
     - revive
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - goconst
   settings:
     errcheck:
       check-type-assertions: true
@@ -48,6 +53,8 @@ linters:
     goconst:
       min-len: 3
       min-occurrences: 3
+      ignore-string-values:
+        - "^(success|sas|peers)$"
     gocyclo:
       min-complexity: 15
     gocritic:
